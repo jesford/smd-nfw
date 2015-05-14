@@ -34,7 +34,7 @@ int main()
   // r ............ radii of interest [Mpc]
   // rs ........... scale radius of cluster [Mpc]
   // delta_c ...... concentration parameter (~characteristic overdensity)
-  // rho_crit ..... critical energy density [kg/m^3 ???] 
+  // rho_crit ..... critical energy density [kg/m^3] 
   //                (depends on lens z and cosmology)
   // sig_center ... Gaussian spread of miscentering [Mpc]
   //
