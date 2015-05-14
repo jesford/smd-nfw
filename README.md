@@ -1,6 +1,6 @@
 ## Weak Lensing Profiles for NFW Halos
 
-* **Work in progress!** I intend to convert the main c program (smd_nfw_omp.c) to python and/or cython and make it easier to use. But if the code above is helpful to you, please go ahead and use it, or, better yet, improve it and send me a pull request. Thanks!*
+*Work in progress! I intend to convert the main c program (smd_nfw_omp.c) to python and/or cython and make it easier to use. But if the code above is helpful to you, please go ahead and use it, or, better yet, improve it and send me a pull request. Thanks!*
 
 The c program **smd_nfw_omp.c** was used to calculate weak gravitational lensing magnification and shear profiles for the following published articles:
 
