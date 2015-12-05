@@ -17,4 +17,4 @@ Optionally, this code will include the effects of cluster miscentering. Assuming
 
 #### How to use this code
 
-See the comments at the top of the file (smd_nfw_omp.c) for details on required input files, variables, output files, and compiling instructions. **I recommended using the python class clusters.ClusterEnsemble() to interface to the smd_nfw.c code. See this repository: ** [wl-profile](https://github.com/jesford/wl-profile)
+See the comments at the top of the file (smd_nfw_omp.c) for details on required input files, variables, output files, and compiling instructions. **I recommended using the python class clusters.ClusterEnsemble() to interface to the smd_nfw.c code. See this repository:** [wl-profile](https://github.com/jesford/wl-profile)
