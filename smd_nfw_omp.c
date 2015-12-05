@@ -22,19 +22,19 @@ int main()
   //
   // This program requires 2 input files: 
   //
-  //                                smd_in1.dat ... single column of {r}
-  //                                smd_in2.dat ... 4 columns of {rs, delta_c, rho_crit, sig_center}
+  //                      smd_in1.dat ... single column of {r}
+  //                      smd_in2.dat ... 4 columns of {rs, delta_c, rho_crit, sig_center}
   //
   //  and gives 2 output files:
-  //                                sigma.dat ........  #Rbins columns by #lenses rows [(kg/m^3)*Mpc]
-  //                                deltasigma.dat ...  #Rbins columns by #lenses rows [(kg/m^3)*Mpc]
+  //                      sigma.dat ........  #Rbins columns by #lenses rows [(Msun/pc^2)]
+  //                      deltasigma.dat ...  #Rbins columns by #lenses rows [(Msun/pc^2)]
   //
   //
   // INPUT PARAMETERS FROM FILES:
   // r ............ radii of interest [Mpc]
   // rs ........... scale radius of cluster [Mpc]
   // delta_c ...... concentration parameter (~characteristic overdensity)
-  // rho_crit ..... critical energy density [kg/m^3] 
+  // rho_crit ..... critical energy density [Msun/pc^3] 
   //                (depends on lens z and cosmology)
   // sig_center ... Gaussian spread of miscentering [Mpc]
   //
