@@ -23,8 +23,7 @@ class SurfaceMassDensity(object):
                               the same length (the number of clusters).")
         else:
             rs_dc_rcrit = rs * delta_c * rho_crit
-            self._rs_dc_rcrit = rs_dc_rcrit.value.reshape(nlens,
-                                                          1).repeat(nbins,1)
+            self._rs_dc_rcrit = rs_dc_rcrit.reshape(nlens,1).repeat(nbins,1)
       
         if sig_offset is not None:
             if sig_offset.shape[0] != nlens:
@@ -42,9 +41,10 @@ class SurfaceMassDensity(object):
         self._x_big = np.where(self._x > 1.+1.e-6)
         self._x_one = np.where(np.abs(self._x-1) <= 1.e-6)
 
-        
-    def sigma_nfw(self):
 
+
+    def sigma_nfw(self):
+        """Returns NFW surface mass density profile (centered)."""
         #calculate f
         bigF = np.zeros_like(self._x)
         f = np.zeros_like(self._x)
@@ -71,8 +71,8 @@ class SurfaceMassDensity(object):
 
     
     def deltasigma_nfw(self):
-
-        # calculate g
+        """Returns NFW differential surface mass density profile (centered)."""
+        #calculate g
 
         firstpart = np.zeros_like(self._x)
         secondpart = np.zeros_like(self._x)
@@ -101,7 +101,7 @@ class SurfaceMassDensity(object):
         if np.isnan(np.sum(g)) or np.isinf(np.sum(g)):
             print('\nERROR: g is not all real\n', g)
 
-        # calculate & return centered profile
+        #calculate & return centered profile
         deltasigma = self._rs_dc_rcrit * g
         
         return deltasigma
