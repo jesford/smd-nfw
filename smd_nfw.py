@@ -3,12 +3,11 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 from astropy import units
 
-
 def smd_nfw(rs, delta_c, rho_crit, sig_offset=None, rbins=None):
 
     if rbins is None:  #default r bins
         rmin, rmax = 0.1, 5. 
-        rbins = np.logspace(np.log10(rmin), np.log10(rmax), num = 10)
+        rbins = np.logspace(np.log10(rmin), np.log10(rmax), num = 50)
         rbins = rbins * units.Mpc
     nbins = rbins.shape[0]
 
@@ -90,5 +89,9 @@ def smd_nfw(rs, delta_c, rho_crit, sig_offset=None, rbins=None):
     mean_inside_sigma_nfw = 4. * rs_dc_rcrit_repeated * h
     deltasigma_nfw = mean_inside_sigma_nfw - sigma_nfw
 
+    #alternate equivalent calculation (don't need sigma_nfw directly):
+    #deltasigma_nfw = rs_dc_rcrit_repeated * g
+    np.testing.assert_allclose(deltasigma_nfw, rs_dc_rcrit_repeated * g, rtol=10**-3)
+    
     return sigma_nfw, deltasigma_nfw
     
