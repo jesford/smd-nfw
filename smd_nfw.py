@@ -110,9 +110,10 @@ class SurfaceMassDensity(object):
             for i in range(self._nlens):
                 sigma_sm_ithcluster = []
                 error_sm_ithcluster = []
+                print('\nCalculating for cluster', i+1, 'of', self._nlens)
                 
                 for radius in rbins_saved:
-                    print('\nradius, i', radius, i)
+                    #print('\nradius', radius)
 
                     #inner integral integrates theta 0 -> 2pi
                     #outer integral integrates r_off 0 -> Inf
@@ -125,8 +126,8 @@ class SurfaceMassDensity(object):
                 sigma_sm.append(sigma_sm_ithcluster)
                 error_sm.append(error_sm_ithcluster)
 
-            #reset _x to correspond to input rbins
-            _set_dimensionless_radius(self, radii = self._rbins)
+            #reset _x to correspond to input rbins (default)
+            _set_dimensionless_radius(self)
 
             sigma_sm = np.array(sigma_sm) * units.solMass / units.pc**2
             error_sm = np.array(error_sm) * units.solMass / units.pc**2
