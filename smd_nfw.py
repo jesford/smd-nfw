@@ -10,24 +10,59 @@ from scipy.integrate import quad, dblquad
 class SurfaceMassDensity(object):
     """Calculate NFW profiles for Sigma and Delta-Sigma."""
     def __init__(self, rs, delta_c, rho_crit, sig_offset=None, rbins=None):
+
+        #units_message = " must be in units of "
+        
         if rbins is None:
             rmin, rmax = 0.1, 5. 
             rbins = np.logspace(np.log10(rmin), np.log10(rmax), num = 50)
             self._rbins = rbins * units.Mpc
         else:
-            #should check if units are on it yet...
-            self._rbins = rbins
+            #check rbins input units
+            self._rbins = _check_units(rbins, units.Mpc)
+            #if hasattr(rbins, 'unit'):
+            #    if rbins.unit != units.Mpc:
+            #        raise ValueError("rbins" + units_message + "Mpc.")
+            #    self._rbins = rbins
+            #else:
+            #    self._rbins = rbins * units.Mpc
+            
+            
         self._nbins = self._rbins.shape[0]
-        
+
+        #check rs input units
+        self._rs = _check_units(rs, units.Mpc)
+        #if hasattr(rs, 'unit'):
+        #    if rs.unit != units.Mpc:
+        #        raise ValueError("rs" + units_message + "Mpc.")
+        #    self._rs = rs
+        #else:
+        #    self._rs = rs * units.Mpc
+
+        #check rho_crit input units
+        self._rho_crit = _check_units(rho_crit, units.Msun/units.Mpc/(units.pc**2))
+        #if hasattr(rho_crit, 'unit'):
+        #    if rho_crit.unit != units.Msun/units.Mpc/(units.pc**2):
+        #        raise ValueError("rho_crit" + units_message + "Msun/Mpc/pc**2.")
+        #else:
+        #    rho_crit = rho_crit * units.Msun/units.Mpc/(units.pc**2)
+        #self._rho_crit = rho_crit
+              
+        #check delta_c input units
+        if hasattr(delta_c, 'unit'):
+            raise ValueError("delta_c should be a dimensionless quantity.")
+        self._delta_c = delta_c
+                   
         self._nlens = rs.shape[0]
         if delta_c.shape[0] != self._nlens or rho_crit.shape[0] != self._nlens:
             raise ValueError("Input arrays (rs, delta_c, rho_crit) must have \
                               the same length (the number of clusters).")
+                              
         else:
-            rs_dc_rcrit = rs * delta_c * rho_crit
+            rs_dc_rcrit = self._rs * self._delta_c * self._rho_crit
             self._rs_dc_rcrit = rs_dc_rcrit.reshape(self._nlens,
                                                     1).repeat(self._nbins,1)
-            self._rs = rs
+            #self._rs = rs
 
                   
         if sig_offset is not None:
@@ -231,3 +266,12 @@ def _set_dimensionless_radius(self, radii = None, singlecluster = None):
     #alternate equivalent calculation (don't need sigma_nfw directly):
     #deltasigma_nfw = rs_dc_rcrit_repeated * g
     #np.testing.assert_allclose(deltasigma_nfw, rs_dc_rcrit_repeated * g, rtol=10**-3)
+
+
+def _check_units(input, expected_units):
+    if hasattr(input, 'unit'):
+        if input.unit != expected_units:
+            raise ValueError('Expected units of ' + str(expected_units))
+    else:
+        input = input * expected_units
+    return input
