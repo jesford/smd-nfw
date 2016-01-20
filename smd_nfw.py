@@ -10,66 +10,44 @@ from scipy.integrate import quad, dblquad
 class SurfaceMassDensity(object):
     """Calculate NFW profiles for Sigma and Delta-Sigma."""
     def __init__(self, rs, delta_c, rho_crit, sig_offset=None, rbins=None):
-
-        #units_message = " must be in units of "
         
         if rbins is None:
             rmin, rmax = 0.1, 5. 
             rbins = np.logspace(np.log10(rmin), np.log10(rmax), num = 50)
             self._rbins = rbins * units.Mpc
         else:
-            #check rbins input units
-            self._rbins = _check_units(rbins, units.Mpc)
-            #if hasattr(rbins, 'unit'):
-            #    if rbins.unit != units.Mpc:
-            #        raise ValueError("rbins" + units_message + "Mpc.")
-            #    self._rbins = rbins
-            #else:
-            #    self._rbins = rbins * units.Mpc
-            
-            
-        self._nbins = self._rbins.shape[0]
-
+            #check rbins input units & type
+            self._rbins = _check_input(rbins, units.Mpc)
+        
         #check rs input units
-        self._rs = _check_units(rs, units.Mpc)
-        #if hasattr(rs, 'unit'):
-        #    if rs.unit != units.Mpc:
-        #        raise ValueError("rs" + units_message + "Mpc.")
-        #    self._rs = rs
-        #else:
-        #    self._rs = rs * units.Mpc
+        self._rs = _check_input(rs, units.Mpc)
 
-        #check rho_crit input units
-        self._rho_crit = _check_units(rho_crit, units.Msun/units.Mpc/(units.pc**2))
-        #if hasattr(rho_crit, 'unit'):
-        #    if rho_crit.unit != units.Msun/units.Mpc/(units.pc**2):
-        #        raise ValueError("rho_crit" + units_message + "Msun/Mpc/pc**2.")
-        #else:
-        #    rho_crit = rho_crit * units.Msun/units.Mpc/(units.pc**2)
-        #self._rho_crit = rho_crit
+        #check rho_crit input units & type
+        self._rho_crit = _check_input(rho_crit, units.Msun/units.Mpc/(units.pc**2))
               
-        #check delta_c input units
+        #check delta_c input units & type
         if hasattr(delta_c, 'unit'):
             raise ValueError("delta_c should be a dimensionless quantity.")
-        self._delta_c = delta_c
-                   
-        self._nlens = rs.shape[0]
-        if delta_c.shape[0] != self._nlens or rho_crit.shape[0] != self._nlens:
+        self._delta_c = _check_array_or_list(delta_c)
+
+        self._nbins = self._rbins.shape[0]
+        self._nlens = self._rs.shape[0]
+            
+        if self._delta_c.shape[0] != self._nlens or self._rho_crit.shape[0] != self._nlens:
             raise ValueError("Input arrays (rs, delta_c, rho_crit) must have \
                               the same length (the number of clusters).")
-                              
         else:
             rs_dc_rcrit = self._rs * self._delta_c * self._rho_crit
             self._rs_dc_rcrit = rs_dc_rcrit.reshape(self._nlens,
                                                     1).repeat(self._nbins,1)
-            #self._rs = rs
 
-                  
         if sig_offset is not None:
-            if sig_offset.shape[0] != self._nlens:
+            self._sigmaoffset = _check_input(sig_offset, units.Mpc)
+            if self._sigmaoffset.shape[0] != self._nlens:
                 raise ValueError("sig_offset array must have length equal to \
                                   the number of clusters.")
-        self._sigmaoffset = sig_offset #None or array
+        else:
+            self._sigmaoffset = sig_offset #None
 
         #set self._x, self._x_big, self._x_small, self._x_one
         _set_dimensionless_radius(self)
@@ -86,11 +64,11 @@ class SurfaceMassDensity(object):
             bigF = np.zeros_like(self._x)
             f = np.zeros_like(self._x)
 
-            bigF[self._x_small] = (np.log((1./self._x[self._x_small]) +
-                                   np.sqrt((1./(self._x[self._x_small]**2))-1.))
+            bigF[self._x_small] = (np.log((1./self._x[self._x_small]) + 
+                                   np.sqrt((1./(self._x[self._x_small]**2))-1.)) 
                                    / np.sqrt(1.-(self._x[self._x_small]**2)))
 
-            bigF[self._x_big] = (np.arccos(1./self._x[self._x_big])
+            bigF[self._x_big] = (np.arccos(1./self._x[self._x_big]) 
                                  / np.sqrt(self._x[self._x_big]**2 - 1.))
 
             f = (1. - bigF) / (self._x**2 - 1.)
@@ -225,28 +203,6 @@ class SurfaceMassDensity(object):
 
 
 
-def _set_dimensionless_radius(self, radii = None, singlecluster = None):
-    if radii is None:
-        radii = self._rbins
-    #calculate x = radii / rs
-    if singlecluster is None:
-        radii_repeated = radii.reshape(self._nbins,1).repeat(self._nlens,1)
-        rs_repeated = self._rs.reshape(self._nlens,1).repeat(self._nbins,1)
-        x = radii_repeated.T/rs_repeated
-    else:
-        #print('radii', radii)
-        #print('self._rs[singlecluster]', self._rs[singlecluster])
-        x = radii.reshape(1,1)/self._rs[singlecluster]
-
-    #dimensionless radius
-    self._x = x.value
-
-    #set the 3 cases of dimensionless radius x
-    self._x_small = np.where(self._x < 1.-1.e-6)
-    self._x_big = np.where(self._x > 1.+1.e-6)
-    self._x_one = np.where(np.abs(self._x-1) <= 1.e-6)
-
-
 
     #--------------------------------------------------------------------------
     # calculate h
@@ -268,10 +224,49 @@ def _set_dimensionless_radius(self, radii = None, singlecluster = None):
     #np.testing.assert_allclose(deltasigma_nfw, rs_dc_rcrit_repeated * g, rtol=10**-3)
 
 
-def _check_units(input, expected_units):
+    
+def _set_dimensionless_radius(self, radii = None, singlecluster = None):
+    if radii is None:
+        radii = self._rbins
+    #calculate x = radii / rs
+    if singlecluster is None:
+        radii_repeated = radii.reshape(self._nbins,1).repeat(self._nlens,1)
+        rs_repeated = self._rs.reshape(self._nlens,1).repeat(self._nbins,1)
+        x = radii_repeated.T/rs_repeated
+    else:
+        x = radii.reshape(1,1)/self._rs[singlecluster]
+
+    #dimensionless radius
+    self._x = x.value
+
+    #set the 3 cases of dimensionless radius x
+    self._x_small = np.where(self._x < 1.-1.e-6)
+    self._x_big = np.where(self._x > 1.+1.e-6)
+    self._x_one = np.where(np.abs(self._x-1) <= 1.e-6)
+
+
+def _check_input(input, expected_units):
+    #check units
     if hasattr(input, 'unit'):
         if input.unit != expected_units:
-            raise ValueError('Expected units of ' + str(expected_units))
+            raise ValueError('Expecting input units of ' + str(expected_units))
+        else:
+            output = input.value
     else:
-        input = input * expected_units
-    return input
+        output = input
+        
+    output = _check_array_or_list(output) * expected_units
+        
+    return output
+
+
+def _check_array_or_list(input):
+    #check its list or array
+    if type(input) != np.ndarray:
+        if type(input) == list:
+            output = np.array(input)
+        else:
+            raise TypeError('Expecting input type as ndarray or list.')
+    else:
+        output = input
+    return output
