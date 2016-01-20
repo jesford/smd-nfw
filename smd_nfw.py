@@ -202,28 +202,6 @@ class SurfaceMassDensity(object):
         return deltasigma
 
 
-
-
-    #--------------------------------------------------------------------------
-    # calculate h
-
-    #h = np.zeros_like(x)
-    #h = (bigF + np.log(x/2.))/(x**2)
-    #h[x_one] = 1. + np.log(0.5)
-    #if np.isnan(np.sum(h)) or np.isinf(np.sum(h)):
-    #    print('\nERROR: h is not all real\n', h)
-
-    #--------------------------------------------------------------------------
-
-
-    #mean_inside_sigma_nfw = 4. * rs_dc_rcrit_repeated * h
-    #deltasigma_nfw = mean_inside_sigma_nfw - sigma_nfw
-
-    #alternate equivalent calculation (don't need sigma_nfw directly):
-    #deltasigma_nfw = rs_dc_rcrit_repeated * g
-    #np.testing.assert_allclose(deltasigma_nfw, rs_dc_rcrit_repeated * g, rtol=10**-3)
-
-
     
 def _set_dimensionless_radius(self, radii = None, singlecluster = None):
     if radii is None:
