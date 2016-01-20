@@ -18,42 +18,37 @@ class SurfaceMassDensity(object):
             self._rbins = rbins * units.Mpc
         else:
             #check rbins input units & type
-            self._rbins = utils.check_input(rbins, units.Mpc)
+            self._rbins = utils.check_units_and_type(rbins, units.Mpc)
         
-        #check rs input units
-        self._rs = utils.check_input(rs, units.Mpc)
-
-        #check rho_crit input units & type
-        self._rho_crit = utils.check_input(rho_crit, units.Msun/units.Mpc/(units.pc**2))
-              
-        #check delta_c input units & type
-        if hasattr(delta_c, 'unit'):
-            raise ValueError("delta_c should be a dimensionless quantity.")
-        self._delta_c = utils.check_array_or_list(delta_c)
+        #check input units & types
+        self._rs = utils.check_units_and_type(rs, units.Mpc)
+        self._delta_c = utils.check_units_and_type(delta_c, None)
+        self._rho_crit = utils.check_units_and_type(rho_crit,
+                                        units.Msun/units.Mpc/(units.pc**2))
 
         self._nbins = self._rbins.shape[0]
         self._nlens = self._rs.shape[0]
-            
-        if self._delta_c.shape[0] != self._nlens or self._rho_crit.shape[0] != self._nlens:
-            raise ValueError("Input arrays (rs, delta_c, rho_crit) must have \
-                              the same length (the number of clusters).")
-        else:
-            rs_dc_rcrit = self._rs * self._delta_c * self._rho_crit
-            self._rs_dc_rcrit = rs_dc_rcrit.reshape(self._nlens,
-                                                    1).repeat(self._nbins,1)
 
         if sig_offset is not None:
-            self._sigmaoffset = utils.check_input(sig_offset, units.Mpc)
-            if self._sigmaoffset.shape[0] != self._nlens:
-                raise ValueError("sig_offset array must have length equal to \
-                                  the number of clusters.")
+            self._sigmaoffset = utils.check_units_and_type(sig_offset, units.Mpc)
+            utils.check_input_size(self._sigmaoffset, self._nlens)
         else:
             self._sigmaoffset = sig_offset #None
 
+        #check array sizes are compatible
+        utils.check_input_size(self._rs, self._nlens)
+        utils.check_input_size(self._delta_c, self._nlens)
+        utils.check_input_size(self._rho_crit, self._nlens)
+        utils.check_input_size(self._rbins, self._nbins)
+        
+        rs_dc_rcrit = self._rs * self._delta_c * self._rho_crit
+        self._rs_dc_rcrit = rs_dc_rcrit.reshape(self._nlens,
+                                                    1).repeat(self._nbins,1)
+        
         #set self._x, self._x_big, self._x_small, self._x_one
         _set_dimensionless_radius(self)
 
-            
+#------------------------------------------------------------------------------            
 
     def sigma_nfw(self, offsets = None):
         """Returns NFW surface mass density profile (centered)."""
@@ -203,7 +198,9 @@ class SurfaceMassDensity(object):
         return deltasigma
 
 
-    
+#------------------------------------------------------------------------------
+
+
 def _set_dimensionless_radius(self, radii = None, singlecluster = None):
     if radii is None:
         radii = self._rbins
