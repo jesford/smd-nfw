@@ -50,7 +50,7 @@ class SurfaceMassDensity(object):
 
 #------------------------------------------------------------------------------            
 
-    def sigma_nfw(self, offsets = None):
+    def sigma_nfw(self):
         """Returns NFW surface mass density profile (centered)."""
 
         def _centered_sigma(self, singlecluster = None):
@@ -90,18 +90,15 @@ class SurfaceMassDensity(object):
                 #temporarily make _x correspond to r_eq13
                 r_eq13 = np.sqrt(r_Mpc**2 + r_off**2 -
                                  2.*r_Mpc*r_off*np.cos(theta))
-                #r_eq13 = np.array([r_eq13])
-                #print('\n r_EQ13: ', r_eq13, '\n')
                 _set_dimensionless_radius(self, radii = r_eq13, singlecluster = ith_cluster)
+                
                 sigma = _centered_sigma(self, singlecluster = ith_cluster)
-                #sigma = _sigma_singlecluster(self,
-                #print('sigma\n', sigma, '\n')
-                                
                 inner_integral = sigma.value/(2.*np.pi)
-                #print('inner_integral.shape', inner_integral.shape)
-                #print('offsets', offsets)
-                PofRoff = (r_off/(offsets.value[ith_cluster]**2) *
-                           np.exp(-0.5 * (r_off/offsets.value[ith_cluster])**2))
+
+                PofRoff = (r_off/(self._sigmaoffset.value[ith_cluster]**2) *
+                           np.exp(-0.5 * (r_off/
+                                    self._sigmaoffset.value[ith_cluster])**2))
+                    
                 full_integrand = PofRoff * inner_integral
                 return full_integrand
 
@@ -124,8 +121,8 @@ class SurfaceMassDensity(object):
                 for radius in rbins_saved:
                     #print('\nradius', radius)
 
-                    #inner integral integrates theta 0 -> 2pi
-                    #outer integral integrates r_off 0 -> Inf
+                    #inner integral integrates theta: 0 -> 2pi
+                    #outer integral integrates r_off: 0 -> Inf
                     I = dblquad(dbl_integrand, 0, np.inf,
                                 lambda x: 0, lambda x: 2.*np.pi,
                                 args = (radius,i), epsabs=0.1, epsrel=0.1)
@@ -144,15 +141,13 @@ class SurfaceMassDensity(object):
             return sigma_sm, error_sm
 
 
-        if offsets is None:
+        if self._sigmaoffset is None:
             finalsigma = _centered_sigma(self)
             errsigma = None
-        elif np.abs(offsets).sum() == 0:
+        elif np.abs(self._sigmaoffset).sum() == 0:
             finalsigma = _centered_sigma(self)
             errsigma = None
         else:
-            if type(offsets) == list:
-                offsets = np.array(list)
             finalsigma, errsigma = _offset_sigma(self)
             
             
