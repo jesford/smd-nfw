@@ -4,6 +4,7 @@ import numpy as np
 from astropy import units
 from scipy.integrate import quad, dblquad
 
+import utils
 
 #------------------------------------------------------------------------------
 
@@ -17,18 +18,18 @@ class SurfaceMassDensity(object):
             self._rbins = rbins * units.Mpc
         else:
             #check rbins input units & type
-            self._rbins = _check_input(rbins, units.Mpc)
+            self._rbins = utils.check_input(rbins, units.Mpc)
         
         #check rs input units
-        self._rs = _check_input(rs, units.Mpc)
+        self._rs = utils.check_input(rs, units.Mpc)
 
         #check rho_crit input units & type
-        self._rho_crit = _check_input(rho_crit, units.Msun/units.Mpc/(units.pc**2))
+        self._rho_crit = utils.check_input(rho_crit, units.Msun/units.Mpc/(units.pc**2))
               
         #check delta_c input units & type
         if hasattr(delta_c, 'unit'):
             raise ValueError("delta_c should be a dimensionless quantity.")
-        self._delta_c = _check_array_or_list(delta_c)
+        self._delta_c = utils.check_array_or_list(delta_c)
 
         self._nbins = self._rbins.shape[0]
         self._nlens = self._rs.shape[0]
@@ -42,7 +43,7 @@ class SurfaceMassDensity(object):
                                                     1).repeat(self._nbins,1)
 
         if sig_offset is not None:
-            self._sigmaoffset = _check_input(sig_offset, units.Mpc)
+            self._sigmaoffset = utils.check_input(sig_offset, units.Mpc)
             if self._sigmaoffset.shape[0] != self._nlens:
                 raise ValueError("sig_offset array must have length equal to \
                                   the number of clusters.")
@@ -223,28 +224,4 @@ def _set_dimensionless_radius(self, radii = None, singlecluster = None):
     self._x_one = np.where(np.abs(self._x-1) <= 1.e-6)
 
 
-def _check_input(input, expected_units):
-    #check units
-    if hasattr(input, 'unit'):
-        if input.unit != expected_units:
-            raise ValueError('Expecting input units of ' + str(expected_units))
-        else:
-            output = input.value
-    else:
-        output = input
-        
-    output = _check_array_or_list(output) * expected_units
-        
-    return output
 
-
-def _check_array_or_list(input):
-    #check its list or array
-    if type(input) != np.ndarray:
-        if type(input) == list:
-            output = np.array(input)
-        else:
-            raise TypeError('Expecting input type as ndarray or list.')
-    else:
-        output = input
-    return output
