@@ -50,7 +50,7 @@ class SurfaceMassDensity(object):
 
 #------------------------------------------------------------------------------            
 
-    def sigma_nfw(self):
+    def sigma_nfw(self, epsabs=0.1, epsrel=0.1):
         """Returns NFW surface mass density profile (centered)."""
 
         def _centered_sigma(self, singlecluster = None):
@@ -111,7 +111,7 @@ class SurfaceMassDensity(object):
             rbins_saved = self._rbins.value
 
             rsdcrc_percluster = self._rs_dc_rcrit[:,0]
-
+            
             #for every cluster and radius, do double integration
             for i in range(self._nlens):
                 sigma_sm_ithcluster = []
@@ -125,7 +125,7 @@ class SurfaceMassDensity(object):
                     #outer integral integrates r_off: 0 -> Inf
                     I = dblquad(dbl_integrand, 0, np.inf,
                                 lambda x: 0, lambda x: 2.*np.pi,
-                                args = (radius,i), epsabs=0.1, epsrel=0.1)
+                                args = (radius,i), epsabs=epsabs, epsrel=epsrel)
 
                     sigma_sm_ithcluster.append(I[0])
                     error_sm_ithcluster.append(I[1])
