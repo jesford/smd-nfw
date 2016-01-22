@@ -98,7 +98,6 @@ int main()
 
   //for "approx=0" variable comparisons
   double verysmall = pow(10.,-8.);
-  //double verysmall = pow(10.,-4.); //TRIED IT
   long int c1,c2,c3;
 
 
@@ -122,7 +121,7 @@ int main()
         if((1.-x) >= verysmall) 
 	{
           c1++;
-	  bigF = log((1./x)+sqrt((1./(x*x))-1.))/sqrt(1.-(x*x));  //log should be ln
+	  bigF = log((1./x)+sqrt((1./(x*x))-1.))/sqrt(1.-(x*x));  //this is natural log
 	  firstpart1 = ((4./(x*x))+(2./(x*x-1.)))/sqrt(1.-(x*x));
 	  part_g = firstpart1*log((1.+sqrt((1.-x)/(1.+x)))/(1.-sqrt((1.-x)/(1.+x))));
           f[i] = (1.-bigF)/(x*x-1.);
@@ -163,9 +162,6 @@ int main()
         //if((i == 0)) printf("\nrs[i], delta_c[i], rho_crit[i]: %lf, %lf, %lf\n", rs[i],delta_c[i],rho_crit[i]);
       }
     }
-    //printf("\nc1,c2,c3: %d, %d, %d\n", c1,c2,c3);
-    //printf("\nsigma_nfw[i][j]: %lf\n", sigma_nfw[i][j]);
-
   }
   else
   //------------------------------------------------------------------------
@@ -177,10 +173,10 @@ int main()
     double x, bigF, part_g, firstpart1, firstpart2;
 
     long int numRp=20;   //precision of integration over r < min(Rbins)
-    long int numRc=300;  //precision of integration over R_centoff
+    long int numRc=300;  //precision of integration over R_offset
     long int numTh=100;  //precision of integration over theta
 
-    double maxsig=0.;  //max miscentering sigma_centoff
+    double maxsig=0.;  //max miscentering sigma_offset
     for(i=0; i<nlens; i++) 
       if((sig_center[i]) > maxsig) maxsig=sig_center[i];
 
@@ -205,10 +201,10 @@ int main()
       //printf("\ndeltaRp[j]: %lf\n", deltaRp[j]);
     }
 
-    //R_c = R_centoff array spanning range of possible miscenterings 
+    //R_c = R_offset array spanning range of possible miscenterings 
     // (PofRc exponential drops to essentially zero, when Rc ~ 4*sig_center)
     double Rc[numRc];
-    double PofRc[numRc][nlens]; //P(R_centoff) probability of miscentering offsets
+    double PofRc[numRc][nlens]; //P(R_offset) probability of miscentering offsets
     for(k=0; k<numRc; k++)
     {
       Rc[k] = 4.*k*maxsig/numRc;
@@ -227,8 +223,8 @@ int main()
 
     double sigmaof_rgivenRc=0.;
 
-    double sigma_smoothed[nlens][nbins];//[nt];
-    double sigma_smoothed_Rp[nlens][nbins+numRp-1];//[nt];
+    double sigma_smoothed[nlens][nbins];
+    double sigma_smoothed_Rp[nlens][nbins+numRp-1];
     double mean_inside_sigma_smoothed[nlens][nbins];
 
     //Force all array values to zero
@@ -252,7 +248,7 @@ int main()
 
 	for(j=0; j<nbins; j++)  //R bins loop
 	{
-          for(k=0; k<numRc; k++)  //R_centoff loop
+          for(k=0; k<numRc; k++)  //R_offset loop
 	  {
             sigmaof_rgivenRc=0.;
 
@@ -260,87 +256,56 @@ int main()
 	    {	      
               // x = r'/r_scale, where r' is a function of r and Rc (R_offset)
 	      // [note: instead of sqrt(abs(...)) doing 4th-root of square]
-              // THIS x is for sigma (different than below)
+              // THIS x is for sigma (different than for deltasigma below)
               x = pow(pow((r[j]*r[j] + (Rc[k]*Rc[k]) - 2.*r[j]*Rc[k]*cos(theta[m])),2.),0.25)/rs[i];
  
               if((1.-x) >= verysmall) 
               {
 		if(x==0.) x=verysmall; //hack to avoid bigF=inf (1/22/16)
-	        bigF = log((1./x)+sqrt((1./(x*x))-1.))/sqrt(1.-(x*x));  //log should be ln
+	        bigF = log((1./x)+sqrt((1./(x*x))-1.))/sqrt(1.-(x*x));  //this is natural log
                 f = (1.-bigF)/(x*x-1.);
-		//if(j==0 && k==75 && m==99){
-		//printf("\nOPTION 1!\nf: %lf", f);
-		//printf("\nx: %lf", x);
-		//printf("\nbigF: %lf\n", bigF);
-		//}
               }
               else if((x-1.) >= verysmall)
 	      {
                 bigF=acos(1./x)/sqrt(x*x-1.);
                 f = (1.-bigF)/(x*x-1.);
-		//if(j==0 && k==75 && m==99) printf("\nOPTION 2!\nf: %lf\n", f);
               }
               else
 	      {
 		f = 1./3.;
-		//if(j==0 && k==75 && m==99) printf("\nOPTION 3!\nf: %lf\n", f);
 	      }
 
               //CONVOLUTION: INTEGRAL OVER THETA
               //EQ 7 (Johnston et al. 2007)
               sigmaof_rgivenRc += (2.*rs[i]*delta_c[i])*(rho_crit[i]*f*(dtheta/2./M_PI));
-	      //if(j==0)
-	      //if (k==75){
-	      //printf("\ni, j, k, m: %ld %ld %ld %ld", i, j, k, m);
-		//printf("\nsigmaof_rgivenRc: %lf", sigmaof_rgivenRc);
-		//printf("\nf: %lf\n", f);
-	        //printf("\nrs[i],delta_c[i],rho_crit[i],f,dtheta: %lf", f);
-	      //}
-		
-              //#pragma omp flush
+
 	    } //end m loop
 
-            //INTEGRAL OVER R_centoff
+            //INTEGRAL OVER R_offset
             //EQ 9 (Johnston et al. 2007, with his Rs -> my Rc)
             sigma_smoothed[i][j] += sigmaof_rgivenRc*PofRc[k][i]*dRc;
-	    //if(j==0)
-	    //if (k==75){
-	    //printf("\ni, j, k: %ld %ld %ld", i, j, k);
-	    //printf("\nsigmaof_rgivenRc*PofRc[k][i]*dRc: %lf \n", sigmaof_rgivenRc*PofRc[k][i]*dRc);
-	    //printf("\nsigmaof_rgivenRc, PofRc[k][i], dRc: %lf %lf %lf \n", sigmaof_rgivenRc, PofRc[k][i], dRc);
-	    //}
-	    
-	    //sigma_smoothed[i][j][tid] += sigmaof_rgivenRc*PofRc[k][i]*dRc;
 
-            //if((i == 1) && (k == numRc-1) && (j == 0)) printf("\nsigma_smoothed[i][j]: %lf\n", sigma_smoothed[i][j]);
-	    //if((i == 1) && (k == numRc-1) && (j == 0)) printf("\nsigma_smoothed[i][j][tid]: %lf\n", sigma_smoothed[i][j][tid]);
-
-	    //if(j==0) printf("\ni, j, k, PofRc[k][i]: %ld %ld %ld %lf \n", i, j, k, PofRc[k][i]);
-	    //if(k==75) printf("i, j, k, sigmaof_rgivenRc: %ld %ld %ld %lf \n", i, j, k, sigmaof_rgivenRc);
           } //end k loop
-	  //printf("\ni, j, sigma_smoothed[i][j]: %ld %ld %lf \n", i, j, sigma_smoothed[i][j]);
-	  //printf("dRc: %lf \n", dRc);
         } //end j loop
 
         //----------------------------------------
         // MEAN-SIGMA(<r) CALCULATION
         for(j=0; j<(nbins+numRp-1); j++)  //Rp (extended R) bins loop
         {
-          //if(i==0) printf("\njp = %d", jp);
-          for(k=0; k<numRc; k++)  //R_centoff loop
+          for(k=0; k<numRc; k++)  //R_offset loop
 	  {
             sigmaof_rgivenRc=0.;
 
             for(m=0; m<numTh; m++)  //theta loop
 	    {
-              //#pragma omp flush
-              // x = r_offset/r_scale [note: instead of sqrt(abs(...)) doing 4th-root of square]
+              // x = r'/r_scale, where r' is a function of r and Rc (R_offset)
+	      // [note: instead of sqrt(abs(...)) doing 4th-root of square]
               // THIS x is for calculating deltasigma from mean(sigma(<r))
               x = pow(pow((Rp[j]*Rp[j] + (Rc[k]*Rc[k]) - 2.*Rp[j]*Rc[k]*cos(theta[m])),2.),0.25)/rs[i]; 
 
               if((1.-x) >= verysmall) 
               {
-	        bigF = log((1./x)+sqrt((1./(x*x))-1.))/sqrt(1.-(x*x));  //log should be ln
+	        bigF = log((1./x)+sqrt((1./(x*x))-1.))/sqrt(1.-(x*x));  //this is natural log
                 f = (1.-bigF)/(x*x-1.);
               }
               else if((x-1.) >= verysmall)
@@ -357,27 +322,13 @@ int main()
 
 	    } //end m loop
 
-            //INTEGRAL OVER R_centoff
+            //INTEGRAL OVER R_offset
             //EQ 9 (Johnston et al. 2007, with his Rs -> my Rc)
             sigma_smoothed_Rp[i][j] += sigmaof_rgivenRc*PofRc[k][i]*dRc;
-	    
-	    //sigma_smoothed_Rp[i][j][tid] += sigmaof_rgivenRc*PofRc[k][i]*dRc;
-
 
           } //end k loop
-	  //printf("\ni, j, sigma_smoothed_Rp[i][j]: %ld %ld %lf \n", i, j, sigma_smoothed_Rp[i][j]);
         } //end j loop
-
-        //----------------------------------------
-
-	//printf("\ni,tid,sigma_smoothed[0][0][tid]: %ld %ld %lf \n", i, tid, sigma_smoothed[0][0][tid]);
-	//printf("\ni,sigma_smoothed[0][0]: %ld %lf \n", i, sigma_smoothed[0][0]);
-
     } //end i loop
-    //printf("\nFinished PARALLEL processing.\n");
-
-    //for(tid=0; tid<nt; tid++) printf("\nsigma_smoothed (i=349,j=0): %lf", sigma_smoothed[349][0][tid]);
-    //for(tid=0; tid<nt; tid++) printf("\nsigma_smoothed_Rp (i=349,j=0): %lf", sigma_smoothed_Rp[349][0][tid]);
 
 
     //COMBINE THREADS
@@ -389,20 +340,14 @@ int main()
 	deltasigma_nfw[i][j] = 0.;
         mean_inside_sigma_nfw[i][j] = 0.;
 
-        //for(tid=0; tid<nt; tid++)
-	//{
-          //FINAL output (smoothed sigma)
+        //FINAL output (smoothed sigma)
 	sigma_nfw[i][j] += sigma_smoothed[i][j];//[tid];
-	//printf("\ni, j, sigma_smoothed[i][j]: %ld %ld %lf \n", i, j, sigma_smoothed[i][j]);
 
-          //INTEGRAL OVER INSIDE (r<R)
-          //EQ 8 (George et al. 2012)
+        //INTEGRAL OVER INSIDE (r<R)
+        //EQ 8 (George et al. 2012)
         for(k=0; k<(j+numRp); k++)
           mean_inside_sigma_smoothed[i][j] += (sigma_smoothed_Rp[i][k]*Rp[k]*deltaRp[k])*(2./(r[j]*r[j]));
-	//mean_inside_sigma_smoothed[i][j] += (sigma_smoothed_Rp[i][k][tid]*Rp[k]*deltaRp[k])*(2./(r[j]*r[j]));
-
-	  //}
-
+	
         //FINAL output (smoothed deltasigma)
         deltasigma_nfw[i][j] = mean_inside_sigma_smoothed[i][j] - sigma_nfw[i][j]; 
 
@@ -431,12 +376,10 @@ int main()
     fprintf(out2,"\n");
   }
 
-
   //close files
   fclose(out1);
   fclose(out2);
 
   //the end
-  //printf("\nsmd_nfw_omp FINISHED.\n");
   return 0;
 }
