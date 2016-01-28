@@ -11,7 +11,31 @@ import utils
 class SurfaceMassDensity(object):
     """Calculate NFW profiles for Sigma and Delta-Sigma."""
     def __init__(self, rs, delta_c, rho_crit, sig_offset=None, rbins=None):
-        
+        """Initialize a SurfaceMassDensity object.
+
+        Parameters
+        ----------
+        rs : Numpy 1D array or list
+            Scale radii for every halo.
+        delta_c : Numpy 1D array or list
+            Characteristic overdensities for every halo.
+        rho_crit : Numpy 1D array or list
+            Critical energy density of the universe at every halo z.
+        sig_offset : Numpy 1D array or list, optional
+            Width of the Gaussian distribution of miscentering offsets,
+            for every cluster halo (note: it is common to use the same
+            value for every halo, implying that they are drawn from the
+            same offset distribution).
+        rbins : Numpy 1D array, optional
+            Radial bins (in Mpc) at which profiles will be calculated.
+
+        Methods
+        ----------
+        sigma_nfw(epsabs=0.1, epsrel=0.1)
+            Calculate surface mass density Sigma.
+        deltasigma_nfw()
+            Calculate differential surface mass density DelatSigma.
+        """
         if rbins is None:
             rmin, rmax = 0.1, 5. 
             rbins = np.logspace(np.log10(rmin), np.log10(rmax), num = 50)
@@ -48,11 +72,29 @@ class SurfaceMassDensity(object):
         #set self._x, self._x_big, self._x_small, self._x_one
         _set_dimensionless_radius(self)
 
-#------------------------------------------------------------------------------            
+#------------------------------------------------------------------------------
 
     def sigma_nfw(self, epsabs=0.1, epsrel=0.1):
-        """Returns NFW surface mass density profile (centered)."""
+        """Calculate NFW surface mass density profile.
 
+        Generate the surface mass density profiles of each cluster halo,
+        assuming a spherical NFW model. Optionally includes the effect of
+        cluster miscentering offsets, if the parent object was initialized
+        with offsets.
+
+        Parameters
+        ----------
+        epsabs, epsrel : float, optional
+            Absolute and relative tolerances of the double integration in
+            the miscentering calculations (no effect for offsets=None).
+            Defaults are both currently set to 0.1.
+
+        Returns
+        ----------
+        Numpy array, with astropy.units of Msun/pc/pc
+            Surface mass density profiles. Each row corresponds to a single
+            cluster halo.
+        """
         def _centered_sigma(self, singlecluster = None):
             #perfectly centered cluster case
             
@@ -90,7 +132,8 @@ class SurfaceMassDensity(object):
                 #temporarily make _x correspond to r_eq13
                 r_eq13 = np.sqrt(r_Mpc**2 + r_off**2 -
                                  2.*r_Mpc*r_off*np.cos(theta))
-                _set_dimensionless_radius(self, radii = r_eq13, singlecluster = ith_cluster)
+                _set_dimensionless_radius(self, radii = r_eq13,
+                                          singlecluster = ith_cluster)
                 
                 sigma = _centered_sigma(self, singlecluster = ith_cluster)
                 inner_integral = sigma.value/(2.*np.pi)
@@ -116,7 +159,7 @@ class SurfaceMassDensity(object):
             for i in range(self._nlens):
                 sigma_sm_ithcluster = []
                 error_sm_ithcluster = []
-                print('\nCalculating for cluster', i+1, 'of', self._nlens)
+                #print('\nCalculating for cluster', i+1, 'of', self._nlens)
                 
                 for radius in rbins_saved:
                     #print('\nradius', radius)
@@ -157,7 +200,18 @@ class SurfaceMassDensity(object):
 
     
     def deltasigma_nfw(self):
-        """Returns NFW differential surface mass density profile (centered)."""
+        """Calculate NFW differential surface mass density profile.
+
+        Generate the surface mass density profiles of each cluster halo,
+        assuming a spherical NFW model. Currently calculates centered
+        profiles ONLY; DOES NOT have the miscentering implemented.
+
+        Returns
+        ----------
+        Numpy array, with astropy.units of Msun/pc/pc
+            Differential surface mass density profiles. Each row
+            corresponds to a single cluster halo.
+        """
         #calculate g
 
         firstpart = np.zeros_like(self._x)
