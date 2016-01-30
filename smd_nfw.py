@@ -9,33 +9,46 @@ import utils
 #------------------------------------------------------------------------------
 
 class SurfaceMassDensity(object):
-    """Calculate NFW profiles for Sigma and Delta-Sigma."""
+    """Calculate NFW profiles for Sigma and Delta-Sigma.
+
+    Parameters
+    ----------
+    rs : array_like
+        Scale radii (in Mpc) for every halo. Should be 1D, optionally with
+        astropy.units of Mpc.
+    delta_c : array_like
+        Characteristic overdensities for every halo. Should be 1D and have
+        the same length as rs.
+    rho_crit : array_like
+        Critical energy density of the universe (in Msun/Mpc/pc^2) at every
+        halo z. Should be 1D, optionally with astropy.units of
+        Msun/Mpc/(pc**2), and have the same length as rs.
+    sig_offset : array_like, optional
+        Width of the Gaussian distribution of miscentering offsets (in
+        Mpc), for every cluster halo. Should be 1D, optionally with
+        astropy.units of Mpc, and have the same length as rs. (Note: it is
+        common to use the same value for every halo, implying that they are
+        drawn from the same offset distribution).
+    rbins : array_like, optional
+        Radial bins (in Mpc) at which profiles will be calculated. Should
+        be 1D, optionally with astropy.units of Mpc.
+
+    Methods
+    ----------
+    sigma_nfw(epsabs=0.1, epsrel=0.1)
+        Calculate surface mass density Sigma.
+    deltasigma_nfw()
+        Calculate differential surface mass density DeltaSigma.
+
+    See Also
+    ----------
+    ClusterEnsemble : parameters and profiles for a sample of clusters.
+        This class provides an interface to SurfaceMassDensity, and tracks
+        a DataFrame of parameters as well as nfw profiles for many clusters
+        at once, only requiring the user to specify cluster z and richness,
+        at a minimum.
+    """
     def __init__(self, rs, delta_c, rho_crit, sig_offset=None, rbins=None):
-        """Initialize a SurfaceMassDensity object.
-
-        Parameters
-        ----------
-        rs : Numpy 1D array or list
-            Scale radii for every halo.
-        delta_c : Numpy 1D array or list
-            Characteristic overdensities for every halo.
-        rho_crit : Numpy 1D array or list
-            Critical energy density of the universe at every halo z.
-        sig_offset : Numpy 1D array or list, optional
-            Width of the Gaussian distribution of miscentering offsets,
-            for every cluster halo (note: it is common to use the same
-            value for every halo, implying that they are drawn from the
-            same offset distribution).
-        rbins : Numpy 1D array, optional
-            Radial bins (in Mpc) at which profiles will be calculated.
-
-        Methods
-        ----------
-        sigma_nfw(epsabs=0.1, epsrel=0.1)
-            Calculate surface mass density Sigma.
-        deltasigma_nfw()
-            Calculate differential surface mass density DelatSigma.
-        """
         if rbins is None:
             rmin, rmax = 0.1, 5. 
             rbins = np.logspace(np.log10(rmin), np.log10(rmax), num = 50)
@@ -91,9 +104,9 @@ class SurfaceMassDensity(object):
 
         Returns
         ----------
-        Numpy array, with astropy.units of Msun/pc/pc
-            Surface mass density profiles. Each row corresponds to a single
-            cluster halo.
+        Quantity
+            Surface mass density profiles (ndarray, in astropy.units of
+            Msun/pc/pc). Each row corresponds to a single cluster halo.
         """
         def _centered_sigma(self, singlecluster = None):
             #perfectly centered cluster case
@@ -150,7 +163,6 @@ class SurfaceMassDensity(object):
 
             #for each cluster and physical measurement radius, calculate 
             # double integral to get sigma_smoothed & its error...
-            # change eps* ? TO DO: add option to customize precision.
             rbins_saved = self._rbins.value
 
             rsdcrc_percluster = self._rs_dc_rcrit[:,0]
@@ -208,9 +220,10 @@ class SurfaceMassDensity(object):
 
         Returns
         ----------
-        Numpy array, with astropy.units of Msun/pc/pc
-            Differential surface mass density profiles. Each row
-            corresponds to a single cluster halo.
+        Quantity
+            Differential surface mass density profiles (ndarray, in
+            astropy.units of Msun/pc/pc). Each row corresponds to a single
+            cluster halo.
         """
         #calculate g
 
