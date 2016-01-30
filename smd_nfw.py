@@ -23,7 +23,7 @@ class SurfaceMassDensity(object):
         Critical energy density of the universe (in Msun/Mpc/pc^2) at every
         halo z. Should be 1D, optionally with astropy.units of
         Msun/Mpc/(pc**2), and have the same length as rs.
-    sig_offset : array_like, optional
+    offsets : array_like, optional
         Width of the Gaussian distribution of miscentering offsets (in
         Mpc), for every cluster halo. Should be 1D, optionally with
         astropy.units of Mpc, and have the same length as rs. (Note: it is
@@ -48,7 +48,7 @@ class SurfaceMassDensity(object):
         at once, only requiring the user to specify cluster z and richness,
         at a minimum.
     """
-    def __init__(self, rs, delta_c, rho_crit, sig_offset=None, rbins=None):
+    def __init__(self, rs, delta_c, rho_crit, offsets=None, rbins=None):
         if rbins is None:
             rmin, rmax = 0.1, 5. 
             rbins = np.logspace(np.log10(rmin), np.log10(rmax), num = 50)
@@ -66,11 +66,11 @@ class SurfaceMassDensity(object):
         self._nbins = self._rbins.shape[0]
         self._nlens = self._rs.shape[0]
 
-        if sig_offset is not None:
-            self._sigmaoffset = utils.check_units_and_type(sig_offset, units.Mpc)
+        if offsets is not None:
+            self._sigmaoffset = utils.check_units_and_type(offsets, units.Mpc)
             utils.check_input_size(self._sigmaoffset, self._nlens)
         else:
-            self._sigmaoffset = sig_offset #None
+            self._sigmaoffset = offsets #None
 
         #check array sizes are compatible
         utils.check_input_size(self._rs, self._nlens)
