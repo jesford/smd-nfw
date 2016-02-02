@@ -1,12 +1,14 @@
+"""Add the module level docstring..."""
+
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from astropy import units
-from scipy.integrate import quad, dblquad
+from scipy.integrate import simps, romb, cumtrapz
+#quad, dblquad
 
 import utils
 
-#------------------------------------------------------------------------------
 
 class SurfaceMassDensity(object):
     """Calculate NFW profiles for Sigma and Delta-Sigma.
@@ -35,7 +37,7 @@ class SurfaceMassDensity(object):
 
     Methods
     ----------
-    sigma_nfw(epsabs=0.1, epsrel=0.1)
+    sigma_nfw()
         Calculate surface mass density Sigma.
     deltasigma_nfw()
         Calculate differential surface mass density DeltaSigma.
@@ -87,20 +89,13 @@ class SurfaceMassDensity(object):
 
 #------------------------------------------------------------------------------
 
-    def sigma_nfw(self, epsabs=0.1, epsrel=0.1):
+    def sigma_nfw(self):
         """Calculate NFW surface mass density profile.
 
         Generate the surface mass density profiles of each cluster halo,
         assuming a spherical NFW model. Optionally includes the effect of
         cluster miscentering offsets, if the parent object was initialized
         with offsets.
-
-        Parameters
-        ----------
-        epsabs, epsrel : float, optional
-            Absolute and relative tolerances of the double integration in
-            the miscentering calculations (no effect for offsets=None).
-            Defaults are both currently set to 0.1.
 
         Returns
         ----------
@@ -125,75 +120,77 @@ class SurfaceMassDensity(object):
             f = (1. - bigF) / (self._x**2 - 1.)
             f[self._x_one] = 1./3.
             if np.isnan(np.sum(f)) or np.isinf(np.sum(f)):
-                print('\nERROR: f is not all real\n', f)
+                print('\nERROR: f is not all real\n')#, f)
 
             #calculate & return centered profiles
             if singlecluster is None:
-                sigma = 2. * self._rs_dc_rcrit * f
+                if f.ndim == 2:
+                    sigma = 2. * self._rs_dc_rcrit * f
+                else:
+                    rs_dc_rcrit_4D = self._rs_dc_rcrit.T.reshape(1,1, \
+                                                    f.shape[2],f.shape[3])
+                    sigma = 2. * rs_dc_rcrit_4D * f
+                                    
             else:
                 sigma = 2. * self._rs_dc_rcrit[singlecluster,0] * f
 
+            #print('\nsigma.shape', sigma.shape)
             return sigma
 
         
         def _offset_sigma(self):
+
+            # "x" arrays to integrate over
+            # length +1 from C code b/c simps wants odd number of samples
+            numRoff = 300
+            numTh = 100
+            numRbins = self._nbins
+            maxsig = self._sigmaoffset.value.max()
+            roff_1D = np.linspace(0., 4.*maxsig, numRoff) 
+            theta_1D = np.linspace(0., 2.*np.pi, numTh, endpoint=False)
+            rMpc_1D = self._rbins.value
+
+            #reshape for broadcasting: (numTh,numRoff,numRbins)
+            theta = theta_1D.reshape(numTh,1,1)
+            roff = roff_1D.reshape(1,numRoff,1)
+            rMpc = rMpc_1D.reshape(1,1,numRbins)
             
-            def dbl_integrand(theta, r_off, r_Mpc, ith_cluster):
-                #theta, r_off are integration variables
-                #r_Mpc is one of the radial measurement bins
-
-                #temporarily make _x correspond to r_eq13
-                r_eq13 = np.sqrt(r_Mpc**2 + r_off**2 -
-                                 2.*r_Mpc*r_off*np.cos(theta))
-                _set_dimensionless_radius(self, radii = r_eq13,
-                                          singlecluster = ith_cluster)
-                
-                sigma = _centered_sigma(self, singlecluster = ith_cluster)
-                inner_integral = sigma.value/(2.*np.pi)
-
-                PofRoff = (r_off/(self._sigmaoffset.value[ith_cluster]**2) *
-                           np.exp(-0.5 * (r_off/
-                                    self._sigmaoffset.value[ith_cluster])**2))
-                    
-                full_integrand = PofRoff * inner_integral
-                return full_integrand
-
-            sigma_sm = [] #TO DO: change to predefined np arrays?
-            error_sm = []
-
-            #for each cluster and physical measurement radius, calculate 
-            # double integral to get sigma_smoothed & its error...
-            rbins_saved = self._rbins.value
-
-            rsdcrc_percluster = self._rs_dc_rcrit[:,0]
+            r_eq13 = np.sqrt(rMpc ** 2 + roff ** 2 -
+                             2. * rMpc * roff * np.cos(theta))
             
-            #for every cluster and radius, do double integration
-            for i in range(self._nlens):
-                sigma_sm_ithcluster = []
-                error_sm_ithcluster = []
-                #print('\nCalculating for cluster', i+1, 'of', self._nlens)
+            #3D array r_eq13 -> 4D dimensionless radius (nlens)
+            _set_dimensionless_radius(self, radii = r_eq13,
+                                      integration = True)
                 
-                for radius in rbins_saved:
-                    #print('\nradius', radius)
+            sigma = _centered_sigma(self)
+            inner_integrand = sigma.value/(2.*np.pi)
 
-                    #inner integral integrates theta: 0 -> 2pi
-                    #outer integral integrates r_off: 0 -> Inf
-                    I = dblquad(dbl_integrand, 0, np.inf,
-                                lambda x: 0, lambda x: 2.*np.pi,
-                                args = (radius,i), epsabs=epsabs, epsrel=epsrel)
+            #integrate over theta axis: 
+            sigma_of_RgivenRoff = simps(inner_integrand, theta_1D, axis=0)
+            sigma_of_RgivenRoff = np.trapz(inner_integrand, theta_1D, axis=0)
+            #dx = theta_1D[1]-theta_1D[0] #has to be 2**k+1 samples
+            #sigma_of_RgivenRoff = romb(inner_integrand, dx=dx, axis=0)
 
-                    sigma_sm_ithcluster.append(I[0])
-                    error_sm_ithcluster.append(I[1])
-                sigma_sm.append(sigma_sm_ithcluster)
-                error_sm.append(error_sm_ithcluster)
+            #theta is gone, now dimensions are: (numRoff,numRbins,nlens)
+            sig_off_3D = self._sigmaoffset.value.reshape(1,1,self._nlens)
+            roff_v2 = roff_1D.reshape(numRoff,1,1)
+            PofRoff = (roff_v2/(sig_off_3D**2) *
+                       np.exp(-0.5*(roff_v2 / sig_off_3D)**2))
 
+            dbl_integrand = sigma_of_RgivenRoff * PofRoff
+            
+            #integrate over Roff axis (axis=0 after theta is gone):
+            #sigma_smoothed = simps(dbl_integrand, roff_1D, axis=0)
+            sigma_smoothed = np.trapz(dbl_integrand, roff_1D, axis=0)
+            #dx = roff_1D[1]-roff_1D[0] #has to be 2**k+1 samples
+            #sigma_smoothed = romb(dbl_integrand, dx=dx, axis=0)
+            
             #reset _x to correspond to input rbins (default)
             _set_dimensionless_radius(self)
 
-            sigma_sm = np.array(sigma_sm) * units.solMass / units.pc**2
-            error_sm = np.array(error_sm) * units.solMass / units.pc**2
+            sigma_sm = np.array(sigma_smoothed.T) * units.solMass / units.pc**2
             
-            return sigma_sm, error_sm
+            return sigma_sm
 
 
         if self._sigmaoffset is None:
@@ -201,12 +198,11 @@ class SurfaceMassDensity(object):
             errsigma = None
         elif np.abs(self._sigmaoffset).sum() == 0:
             finalsigma = _centered_sigma(self)
-            errsigma = None
         else:
-            finalsigma, errsigma = _offset_sigma(self)
+            finalsigma = _offset_sigma(self)
             
-            
-        return finalsigma #, errsigma ???
+        #print('\nThis is the new experimental python version!\n')
+        return finalsigma
 
 #------------------------------------------------------------------------------
 
@@ -263,19 +259,38 @@ class SurfaceMassDensity(object):
 #------------------------------------------------------------------------------
 
 
-def _set_dimensionless_radius(self, radii = None, singlecluster = None):
+def _set_dimensionless_radius(self, radii = None, singlecluster = None,
+                              integration = False):
     if radii is None:
-        radii = self._rbins
+        radii = self._rbins  #default radii
+        
     #calculate x = radii / rs
-    if singlecluster is None:
-        radii_repeated = radii.reshape(self._nbins,1).repeat(self._nlens,1)
-        rs_repeated = self._rs.reshape(self._nlens,1).repeat(self._nbins,1)
-        x = radii_repeated.T/rs_repeated
+    if integration == True:
+        #radii is a 3D matrix (r_eq13 <-> numTh,numRoff,numRbins)
+        d0, d1, d2 = radii.shape[0], radii.shape[1], radii.shape[2]
+
+        #with each cluster's rs, we now have a 4D matrix:
+        radii_4D = radii.reshape(d0, d1, d2, 1)
+        rs_4D = self._rs.reshape(1, 1, 1, self._nlens)
+        x = radii_4D/rs_4D
+        
+    elif singlecluster is None:
+        #1D array of radii and clusters, reshape & broadcast
+        radii_repeated = radii.reshape(1,self._nbins)
+        rs_repeated = self._rs.reshape(self._nlens,1)
+        x = radii_repeated/rs_repeated
     else:
+        #1D array of radii and 1 cluster only
         x = radii.reshape(1,1)/self._rs[singlecluster]
 
+    x = x.value
+    
+    if 0. in x:
+        x[np.where(x == 0.)] = 1.e-10 #hack to avoid infs in sigma
+        #print('Resetting x = zeros to 1e-10')
+    
     #dimensionless radius
-    self._x = x.value
+    self._x = x
 
     #set the 3 cases of dimensionless radius x
     self._x_small = np.where(self._x < 1.-1.e-6)
