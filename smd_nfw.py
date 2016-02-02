@@ -140,10 +140,10 @@ class SurfaceMassDensity(object):
         
         def _offset_sigma(self):
 
-            # "x" arrays to integrate over
-            # length +1 from C code b/c simps wants odd number of samples
+            #size of "x" arrays to integrate over
             numRoff = 300
             numTh = 100
+            
             numRbins = self._nbins
             maxsig = self._sigmaoffset.value.max()
             roff_1D = np.linspace(0., 4.*maxsig, numRoff) 
@@ -201,7 +201,7 @@ class SurfaceMassDensity(object):
         else:
             finalsigma = _offset_sigma(self)
             
-        #print('\nThis is the new experimental python version!\n')
+        print('\nThis is the new experimental python version!\n')
         return finalsigma
 
 #------------------------------------------------------------------------------
