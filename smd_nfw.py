@@ -180,7 +180,7 @@ class SurfaceMassDensity(object):
                     #outer integral integrates r_off: 0 -> Inf
                     I = dblquad(dbl_integrand, 0, np.inf,
                                 lambda x: 0, lambda x: 2.*np.pi,
-                                args = (radius,i), epsabs=epsabs, epsrel=epsrel)
+                                args = (radius,i))#, epsabs=epsabs, epsrel=epsrel)
 
                     sigma_sm_ithcluster.append(I[0])
                     error_sm_ithcluster.append(I[1])
@@ -205,7 +205,7 @@ class SurfaceMassDensity(object):
         else:
             finalsigma, errsigma = _offset_sigma(self)
             
-            
+        print('\nThis is the slow dblquad python version!\n')
         return finalsigma #, errsigma ???
 
 #------------------------------------------------------------------------------
