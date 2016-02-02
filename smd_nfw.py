@@ -166,8 +166,9 @@ class SurfaceMassDensity(object):
             inner_integrand = sigma.value/(2.*np.pi)
 
             #integrate over theta axis: 
-            sigma_of_RgivenRoff = simps(inner_integrand, theta_1D, axis=0)
+            #sigma_of_RgivenRoff = simps(inner_integrand, theta_1D, axis=0)
             sigma_of_RgivenRoff = np.trapz(inner_integrand, theta_1D, axis=0)
+            
             #dx = theta_1D[1]-theta_1D[0] #has to be 2**k+1 samples
             #sigma_of_RgivenRoff = romb(inner_integrand, dx=dx, axis=0)
 
@@ -182,6 +183,7 @@ class SurfaceMassDensity(object):
             #integrate over Roff axis (axis=0 after theta is gone):
             #sigma_smoothed = simps(dbl_integrand, roff_1D, axis=0)
             sigma_smoothed = np.trapz(dbl_integrand, roff_1D, axis=0)
+            
             #dx = roff_1D[1]-roff_1D[0] #has to be 2**k+1 samples
             #sigma_smoothed = romb(dbl_integrand, dx=dx, axis=0)
             
