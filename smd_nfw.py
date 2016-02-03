@@ -146,7 +146,7 @@ class SurfaceMassDensity(object):
             
             numRbins = self._nbins
             maxsig = self._sigmaoffset.value.max()
-            roff_1D = np.linspace(0., 4.*maxsig, numRoff) 
+            roff_1D = np.linspace(0., 4.*maxsig, numRoff, endpoint=False) 
             theta_1D = np.linspace(0., 2.*np.pi, numTh, endpoint=False)
             rMpc_1D = self._rbins.value
 
@@ -166,7 +166,8 @@ class SurfaceMassDensity(object):
             inner_integrand = sigma.value/(2.*np.pi)
 
             #integrate over theta axis: 
-            sigma_of_RgivenRoff = simps(inner_integrand, theta_1D, axis=0)
+            #sigma_of_RgivenRoff = simps(inner_integrand, x=theta_1D, axis=0)
+            sigma_of_RgivenRoff = midpoint(inner_integrand, x=theta_1D, axis=0)
             
             #theta is gone, now dimensions are: (numRoff,numRbins,nlens)
             sig_off_3D = self._sigmaoffset.value.reshape(1,1,self._nlens)
@@ -177,7 +178,8 @@ class SurfaceMassDensity(object):
             dbl_integrand = sigma_of_RgivenRoff * PofRoff
             
             #integrate over Roff axis (axis=0 after theta is gone):
-            sigma_smoothed = simps(dbl_integrand, roff_1D, axis=0)
+            #sigma_smoothed = simps(dbl_integrand, x=roff_1D, axis=0)
+            sigma_smoothed = midpoint(dbl_integrand, x=roff_1D, axis=0)
             
             #reset _x to correspond to input rbins (default)
             _set_dimensionless_radius(self)
@@ -293,3 +295,25 @@ def _set_dimensionless_radius(self, radii = None, singlecluster = None,
 
 
 
+def midpoint(y, x=None, dx=1., axis=-1):
+    """Integrate using the midpoint rule."""
+    print('Midpoint Integration is Running!')
+    if x is None:
+        dx_array = np.ones(y.shape[axis])*dx
+    elif x.shape[0] != y.shape[axis]:
+        raise ValueError('x and y have incompatible shapes.')
+    else:
+        xm = (x[1:] + x[:-1]) / 2. #midpoints
+        xm_first = 2.* x[0] - xm[0]
+        xm_last = 2.* x[-1] - xm[-1]
+        xm = np.hstack([xm_first, xm, xm_last])
+        dx_array = xm[1:] - xm[:-1]
+
+    yshape = y.shape
+    xshape = [1] * len(yshape)
+    xshape[axis] = yshape[axis]
+    dx_array.shape = tuple(xshape)
+
+    integral = (y * dx_array).sum(axis=axis)
+
+    return integral
