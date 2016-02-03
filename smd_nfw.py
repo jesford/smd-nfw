@@ -143,8 +143,6 @@ class SurfaceMassDensity(object):
             #size of "x" arrays to integrate over
             numRoff = 300
             numTh = 100
-            #numRoff = 2**8+1 #Romberg integration requires
-            #numTh = 2**7+1   # 2**k+1 samples
             
             numRbins = self._nbins
             maxsig = self._sigmaoffset.value.max()
@@ -170,10 +168,6 @@ class SurfaceMassDensity(object):
             #integrate over theta axis: 
             sigma_of_RgivenRoff = simps(inner_integrand, theta_1D, axis=0)
             
-            #sigma_of_RgivenRoff = np.trapz(inner_integrand, theta_1D, axis=0)
-            #dx = theta_1D[1]-theta_1D[0] #has to be 2**k+1 samples
-            #sigma_of_RgivenRoff = romb(inner_integrand, dx=dx, axis=0)
-
             #theta is gone, now dimensions are: (numRoff,numRbins,nlens)
             sig_off_3D = self._sigmaoffset.value.reshape(1,1,self._nlens)
             roff_v2 = roff_1D.reshape(numRoff,1,1)
@@ -184,10 +178,6 @@ class SurfaceMassDensity(object):
             
             #integrate over Roff axis (axis=0 after theta is gone):
             sigma_smoothed = simps(dbl_integrand, roff_1D, axis=0)
-            
-            #sigma_smoothed = np.trapz(dbl_integrand, roff_1D, axis=0)            
-            #dx = roff_1D[1]-roff_1D[0] #has to be 2**k+1 samples
-            #sigma_smoothed = romb(dbl_integrand, dx=dx, axis=0)
             
             #reset _x to correspond to input rbins (default)
             _set_dimensionless_radius(self)
