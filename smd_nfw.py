@@ -161,7 +161,7 @@ class SurfaceMassDensity(object):
             #size of "x" arrays to integrate over
             numRoff = 300
             numTh = 500   #TO DO: option for user to set this
-            print('numRoff, numTh:', numRoff, numTh)
+            #print('numRoff, numTh:', numRoff, numTh)
             
             numRbins = self._nbins
             maxsig = self._sigmaoffset.value.max()
