@@ -4,7 +4,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from astropy import units
-from scipy.integrate import simps, romb, cumtrapz
+from scipy.integrate import simps
+#romb, cumtrapz
 #quad, dblquad
 
 import utils
@@ -121,7 +122,7 @@ class SurfaceMassDensity(object):
         of theta bins used for the angular integration.
         (5) numpy.trapz underestimates concave down functions.
         """
-        def _centered_sigma(self, singlecluster = None):
+        def _centered_sigma(self):
             #perfectly centered cluster case
             
             #calculate f
@@ -141,17 +142,13 @@ class SurfaceMassDensity(object):
                 print('\nERROR: f is not all real\n')#, f)
 
             #calculate & return centered profiles
-            if singlecluster is None:
-                if f.ndim == 2:
-                    sigma = 2. * self._rs_dc_rcrit * f
-                else:
-                    rs_dc_rcrit_4D = self._rs_dc_rcrit.T.reshape(1,1, \
-                                                    f.shape[2],f.shape[3])
-                    sigma = 2. * rs_dc_rcrit_4D * f
-                                    
+            if f.ndim == 2:
+                sigma = 2. * self._rs_dc_rcrit * f
             else:
-                sigma = 2. * self._rs_dc_rcrit[singlecluster,0] * f
-
+                rs_dc_rcrit_4D = self._rs_dc_rcrit.T.reshape(1, 1, \
+                                                f.shape[2],f.shape[3])
+                sigma = 2. * rs_dc_rcrit_4D * f
+                                    
             #print('\nsigma.shape', sigma.shape)
             return sigma
 
@@ -278,8 +275,7 @@ class SurfaceMassDensity(object):
 #------------------------------------------------------------------------------
 
 
-def _set_dimensionless_radius(self, radii = None, singlecluster = None,
-                              integration = False):
+def _set_dimensionless_radius(self, radii = None, integration = False):
     if radii is None:
         radii = self._rbins  #default radii
         
@@ -293,17 +289,13 @@ def _set_dimensionless_radius(self, radii = None, singlecluster = None,
         rs_4D = self._rs.reshape(1, 1, 1, self._nlens)
         x = radii_4D/rs_4D
         
-    elif singlecluster is None:
+    else:
         #1D array of radii and clusters, reshape & broadcast
         radii_repeated = radii.reshape(1,self._nbins)
         rs_repeated = self._rs.reshape(self._nlens,1)
         x = radii_repeated/rs_repeated
-    else:
-        #1D array of radii and 1 cluster only
-        x = radii.reshape(1,1)/self._rs[singlecluster]
 
-    x = x.value
-    
+    x = x.value    
     if 0. in x:
         x[np.where(x == 0.)] = 1.e-10 #hack to avoid infs in sigma
         #print('Resetting x = zeros to 1e-10')
