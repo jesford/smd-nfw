@@ -8,6 +8,7 @@ from scipy.integrate import simps, romb, cumtrapz
 #quad, dblquad
 
 import utils
+import midpoint
 
 
 class SurfaceMassDensity(object):
@@ -102,6 +103,24 @@ class SurfaceMassDensity(object):
         Quantity
             Surface mass density profiles (ndarray, in astropy.units of
             Msun/pc/pc). Each row corresponds to a single cluster halo.
+
+        Notes
+        ----------
+        Among the choices for numerical integration algorithms, the
+        following were considered:
+        (1) scipy.integrate.dblquad is the obvious choice, but is far too
+        slow because it makes of order 10^5 calls to the function to be
+        integrated, even for generous settings of epsabs, epsrel. Likely
+        it is getting stuck in non-smooth portions of the function space.
+        (2) scipy.integrate.simps is fast and converges for a relatively
+        small number of radial bins in the integration over Roff. However
+        for the theta integral simps consistently underestimates the area.
+        (3) scipy.integrate.romb was somewhat slower than simps and as well
+        as the midpoint rule integration.
+        (4) midpoint rule integration via a Riemann Sum was about the same
+        speed as simps, and converged more rapidly as a function of number
+        of theta bins used for the angular integration.
+        (5) numpy.trapz underestimates concave down functions.
         """
         def _centered_sigma(self, singlecluster = None):
             #perfectly centered cluster case
@@ -141,8 +160,9 @@ class SurfaceMassDensity(object):
         def _offset_sigma(self):
 
             #size of "x" arrays to integrate over
-            numRoff = 300
-            numTh = 100
+            numRoff = 500
+            numTh = 1000
+            print('numRoff, numTh:', numRoff, numTh)
             
             numRbins = self._nbins
             maxsig = self._sigmaoffset.value.max()
@@ -166,7 +186,9 @@ class SurfaceMassDensity(object):
             inner_integrand = sigma.value/(2.*np.pi)
 
             #integrate over theta axis: 
-            sigma_of_RgivenRoff = simps(inner_integrand, x=theta_1D, axis=0)
+            #sigma_of_RgivenRoff = simps(inner_integrand, x=theta_1D, axis=0,
+            #                            even='first')
+            sigma_of_RgivenRoff = midpoint.midpoint(inner_integrand, x=theta_1D, axis=0)
             
             #theta is gone, now dimensions are: (numRoff,numRbins,nlens)
             sig_off_3D = self._sigmaoffset.value.reshape(1,1,self._nlens)
@@ -177,7 +199,8 @@ class SurfaceMassDensity(object):
             dbl_integrand = sigma_of_RgivenRoff * PofRoff
             
             #integrate over Roff axis (axis=0 after theta is gone):
-            sigma_smoothed = simps(dbl_integrand, x=roff_1D, axis=0)
+            sigma_smoothed = simps(dbl_integrand, x=roff_1D, axis=0,
+                                   even='first')
             
             #reset _x to correspond to input rbins (default)
             _set_dimensionless_radius(self)
@@ -195,7 +218,7 @@ class SurfaceMassDensity(object):
         else:
             finalsigma = _offset_sigma(self)
             
-        print('\nThis is the new experimental python version!\n')
+        print('\nThis is the new python version using simps integration!\n')
         return finalsigma
 
 #------------------------------------------------------------------------------
