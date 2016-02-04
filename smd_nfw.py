@@ -219,7 +219,7 @@ class SurfaceMassDensity(object):
             finalsigma = _offset_sigma(self)
             
 
-        print('\nThis is the new python version using midpoint integration!\n')
+        #print('\nThis is the new python version using midpoint integration!\n')
         return finalsigma
 
 
@@ -321,7 +321,6 @@ def _set_dimensionless_radius(self, radii = None, singlecluster = None,
     
 def midpoint(y, x=None, dx=1., axis=-1):
     """Integrate using the midpoint rule."""
-    print('Midpoint Integration is Running!')
     if x is None:
         dx_array = np.ones(y.shape[axis])*dx
     elif x.shape[0] != y.shape[axis]:
