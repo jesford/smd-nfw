@@ -181,10 +181,16 @@ class SurfaceMassDensity(object):
             sigma = _centered_sigma(self)
             inner_integrand = sigma.value/(2.*np.pi)
 
-            #integrate over theta axis: 
+            
+            #----- integrate over theta axis -----
+            # NOTE: midpoint is optimal here, simps doesn't do well with 
+            # the not smooth function sampled by inner_integrand.
+            
             #sigma_of_RgivenRoff = simps(inner_integrand, x=theta_1D, axis=0,
             #                            even='first')
             sigma_of_RgivenRoff = midpoint(inner_integrand, x=theta_1D, axis=0)
+            #-------------------------------------
+
             
             #theta is gone, now dimensions are: (numRoff,numRbins,nlens)
             sig_off_3D = self._sigmaoffset.value.reshape(1,1,self._nlens)
@@ -193,11 +199,18 @@ class SurfaceMassDensity(object):
                        np.exp(-0.5*(roff_v2 / sig_off_3D)**2))
 
             dbl_integrand = sigma_of_RgivenRoff * PofRoff
+
             
-            #integrate over Roff axis (axis=0 after theta is gone):
-            #sigma_smoothed = simps(dbl_integrand, x=roff_1D, axis=0,
-            #                       even='first')
-            sigma_smoothed = midpoint(dbl_integrand, x=roff_1D, axis=0)
+            #----- integrate over Roff axis -----
+            # NOTE: either simps or midpoint works well here, both converge
+            # for relatively small number of roff bins (~200-300).
+            # (integration axis=0 after theta is gone).
+            
+            sigma_smoothed = simps(dbl_integrand, x=roff_1D, axis=0,
+                                   even='first')
+            #sigma_smoothed = midpoint(dbl_integrand, x=roff_1D, axis=0)
+            #-------------------------------------
+
             
             #reset _x to correspond to input rbins (default)
             _set_dimensionless_radius(self)
@@ -209,7 +222,6 @@ class SurfaceMassDensity(object):
 
         if self._sigmaoffset is None:
             finalsigma = _centered_sigma(self)
-            errsigma = None
         elif np.abs(self._sigmaoffset).sum() == 0:
             finalsigma = _centered_sigma(self)
         else:
@@ -237,39 +249,56 @@ class SurfaceMassDensity(object):
             astropy.units of Msun/pc/pc). Each row corresponds to a single
             cluster halo.
         """
-        #calculate g
 
-        firstpart = np.zeros_like(self._x)
-        secondpart = np.zeros_like(self._x)
-        g = np.zeros_like(self._x)
+        def _centered_dsigma(self):
+            #calculate g
 
-        firstpart[self._x_small] = (( (4./self._x[self._x_small]**2) +
-                                      (2./(self._x[self._x_small]**2 - 1.)) )
-                                    / np.sqrt(1. - self._x[self._x_small]**2))
+            firstpart = np.zeros_like(self._x)
+            secondpart = np.zeros_like(self._x)
+            g = np.zeros_like(self._x)
+
+            firstpart[self._x_small] = (( (4./self._x[self._x_small]**2) +
+                                          (2./(self._x[self._x_small]**2 - 1.)) )
+                                        / np.sqrt(1. - self._x[self._x_small]**2))
+
+            firstpart[self._x_big] = (8./(self._x[self._x_big]**2 *
+                                          np.sqrt(self._x[self._x_big]**2 - 1.)) +
+                                            4./((self._x[self._x_big]**2-1.)**1.5))
+
+            secondpart[self._x_small] = (np.log((1. + np.sqrt((1. -
+                                                        self._x[self._x_small])/
+                                        (1. + self._x[self._x_small])))/
+                                        (1. - np.sqrt((1. - self._x[self._x_small])
+                                        / (1. + self._x[self._x_small])))))
+
+            secondpart[self._x_big] = np.arctan(np.sqrt((self._x[self._x_big] - 1.)
+                                                    / (1. + self._x[self._x_big])))
+
+            g = firstpart*secondpart + ((4./(self._x**2))*np.log(self._x/2.) -
+                                        (2./(self._x**2-1.)))
+            g[self._x_one] = (10./3.) + 4.*np.log(0.5)
+            if np.isnan(np.sum(g)) or np.isinf(np.sum(g)):
+                print('\nERROR: g is not all real\n', g)
+
+            #calculate & return centered profile
+            deltasigma = self._rs_dc_rcrit * g
+
+            return deltasigma
+
+
+        def _offset_dsigma(self):
+            pass
         
-        firstpart[self._x_big] = (8./(self._x[self._x_big]**2 *
-                                      np.sqrt(self._x[self._x_big]**2 - 1.)) +
-                                        4./((self._x[self._x_big]**2-1.)**1.5))
-
-        secondpart[self._x_small] = (np.log((1. + np.sqrt((1. -
-                                                    self._x[self._x_small])/
-                                    (1. + self._x[self._x_small])))/
-                                    (1. - np.sqrt((1. - self._x[self._x_small])
-                                    / (1. + self._x[self._x_small])))))
         
-        secondpart[self._x_big] = np.arctan(np.sqrt((self._x[self._x_big] - 1.)
-                                                / (1. + self._x[self._x_big])))
+        if self._sigmaoffset is None:
+            finaldeltasigma = _centered_dsigma(self)
+        elif np.abs(self._sigmaoffset).sum() == 0:
+            finaldeltasigma = _centered_dsigma(self)
+        else:
+            finaldeltasigma = _offset_dsigma(self)
+            
 
-        g = firstpart*secondpart + ((4./(self._x**2))*np.log(self._x/2.) -
-                                    (2./(self._x**2-1.)))
-        g[self._x_one] = (10./3.) + 4.*np.log(0.5)
-        if np.isnan(np.sum(g)) or np.isinf(np.sum(g)):
-            print('\nERROR: g is not all real\n', g)
-
-        #calculate & return centered profile
-        deltasigma = self._rs_dc_rcrit * g
-        
-        return deltasigma
+        return finaldeltasigma
 
 
 #------------------------------------------------------------------------------
