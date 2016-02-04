@@ -331,7 +331,7 @@ int main()
     } //end i loop
 
 
-    //COMBINE THREADS
+    //FINALIZE OUTPUT
     for(i=0; i<nlens; i++)
     {
       for(j=0; j<nbins; j++)
@@ -341,7 +341,7 @@ int main()
         mean_inside_sigma_nfw[i][j] = 0.;
 
         //FINAL output (smoothed sigma)
-	sigma_nfw[i][j] += sigma_smoothed[i][j];//[tid];
+	sigma_nfw[i][j] += sigma_smoothed[i][j];
 
         //INTEGRAL OVER INSIDE (r<R)
         //EQ 8 (George et al. 2012)
