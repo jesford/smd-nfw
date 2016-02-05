@@ -148,8 +148,7 @@ class SurfaceMassDensity(object):
                 rs_dc_rcrit_4D = self._rs_dc_rcrit.T.reshape(1, 1, \
                                                 f.shape[2],f.shape[3])
                 sigma = 2. * rs_dc_rcrit_4D * f
-                                    
-            #print('\nsigma.shape', sigma.shape)
+
             return sigma
 
         
@@ -226,9 +225,9 @@ class SurfaceMassDensity(object):
             finalsigma = _centered_sigma(self)
         else:
             finalsigma = _offset_sigma(self)
-            
+            self._sigma_sm = finalsigma
 
-        #print('\nThis is the new python version using midpoint integration!\n')
+
         return finalsigma
 
 
@@ -287,8 +286,68 @@ class SurfaceMassDensity(object):
 
 
         def _offset_dsigma(self):
-            pass
-        
+
+            original_rbins = self._rbins.value
+
+            #if offset sigma already calculated, use it!
+            try:
+                sigma_sm_rbins = self._sigma_sm
+                print('\nusing pre-calculated sigma_sm\n')
+            except AttributeError:
+                print('\nsigma_sm doesnt exist yet, calculating...')
+                sigma_sm_rbins = self.sigma_nfw()
+                #print('sigma_sm_rbins.shape', sigma_sm_rbins.shape)
+
+            #get offset sigma inside min(rbins)
+            # could be sampled more finely both at r < and > min(rbins)...
+            numR_inner = 20
+            r_midpoints = 0.5 * (original_rbins[:-1] + original_rbins[1:])
+            r_inner = np.linspace(1.e-08, original_rbins.min(), numR_inner)
+            r_extended = np.hstack([r_inner, r_midpoints])
+
+            # set temporary extended rbins, nbins, x, rs_dc_rcrit array
+            self._rbins = r_extended * units.Mpc
+            self._nbins = self._rbins.shape[0]
+            _set_dimensionless_radius(self) #uses _rbins, _nlens
+            rs_dc_rcrit = self._rs * self._delta_c * self._rho_crit
+            self._rs_dc_rcrit = rs_dc_rcrit.reshape(self._nlens,
+                                                    1).repeat(self._nbins,1)
+
+            sigma_sm_extended = self.sigma_nfw()
+
+            mean_inside_sigma_sm = np.zeros([self._nlens, original_rbins.shape[0]])
+            for i, r in enumerate(original_rbins):
+                #print('sigma_sm_extended.shape', sigma_sm_extended.shape)
+                #print('r_extended.shape', r_extended.shape)
+                x = r_extended[0:(i+numR_inner)]
+                y = sigma_sm_extended[:,0:(i+numR_inner)] * x
+                #print('x.shape', x.shape)
+                #print('y.shape', y.shape)
+                integral = simps(y, x=x, axis=-1, even='first')
+
+                #average of sigma_sm at r < rbin
+                mean_inside_sigma_sm[:,i] = (2. / r**2) * integral
+                
+            mean_inside_sigma_sm = mean_inside_sigma_sm * units.Msun/(units.pc**2)
+
+                    
+            # reset original rbins, nbins, x
+            self._rbins = original_rbins * units.Mpc
+            self._nbins = self._rbins.shape[0]
+            _set_dimensionless_radius(self)
+            rs_dc_rcrit = self._rs * self._delta_c * self._rho_crit
+            self._rs_dc_rcrit = rs_dc_rcrit.reshape(self._nlens,
+                                                    1).repeat(self._nbins,1)
+            self._sigma_sm = sigma_sm_rbins #reset to original rbins sigma_sm
+
+            #print('type(mean_inside_sigma_sm)', type(mean_inside_sigma_sm))
+            #print('type(sigma_sm_rbins)', type(sigma_sm_rbins))
+
+            dsigma_sm = mean_inside_sigma_sm - sigma_sm_rbins
+
+            return dsigma_sm
+
+          
         
         if self._sigmaoffset is None:
             finaldeltasigma = _centered_dsigma(self)
