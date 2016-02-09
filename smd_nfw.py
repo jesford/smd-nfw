@@ -427,7 +427,30 @@ def _set_dimensionless_radius(self, radii = None, integration = False):
 from scipy.interpolate import interp1d
 
 def midpoint(y, x=None, dx=1., axis=-1):
-    """Integrate using the midpoint rule."""
+    """Integrate using the midpoint rule.
+
+    Parameters
+    ----------
+    y : ndarray
+        Array to be integrated.
+    x : ndarray, optional
+        If given, points at which `y` is sampled.
+    dx : float, optional
+        Spacing of integration points along axis of `y`. Only used when
+        `x` is None. Default is 1.
+    axis : int, optional
+        Axis along which to integrate. Default is the last axis.
+
+    Returns
+    ----------
+    ndarray
+        Result of integrating along an axis of y.
+
+    Notes
+    ----------
+    If x is given, its first and last value are the start and end of the
+    integration region (as opposed to the midpoints of integration bins).
+    """
     if x is None:
         if type(dx) != float:
             raise ValueError('type(dx) must be float.')
@@ -440,18 +463,13 @@ def midpoint(y, x=None, dx=1., axis=-1):
         dx_array = x[1:] - x[:-1]
     #print('dx_array', dx_array)
 
-    #TODO: this isn't accounting for mult-dim y's
-    #ym = (y[1:] + y[:-1]) / 2. #midpoints
-
     try:
         xm = (x[1:] + x[:-1]) / 2.
     except TypeError:
         x = np.arange(0,y.shape[axis])*dx
         xm = (x[1:] + x[:-1]) / 2.
 
-    #print('\nx\n', x)
-    #print('\ny\n', y)
-    f = interp1d(x,y, axis=axis)
+    f = interp1d(x, y, axis=axis)
     ym = f(xm)
 
     yshape = ym.shape
