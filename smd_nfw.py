@@ -234,7 +234,7 @@ class SurfaceMassDensity(object):
 #------------------------------------------------------------------------------
 
     
-    def deltasigma_nfw(self):
+    def deltasigma_nfw(self, mp = True):
         """Calculate NFW differential surface mass density profile.
 
         Generate the surface mass density profiles of each cluster halo,
@@ -300,11 +300,25 @@ class SurfaceMassDensity(object):
 
             #get offset sigma inside min(rbins)
             # could be sampled more finely both at r < and > min(rbins)...
-            numR_inner = 20
+            numR_inner = 20 #this really affects speed!
             r_midpoints = 0.5 * (original_rbins[:-1] + original_rbins[1:])
-            r_inner = np.linspace(1.e-08, original_rbins.min(), numR_inner)
+            #r_inner = np.linspace(1.e-08, original_rbins.min(), numR_inner)
+            #want to integrate from 0 -> min(rbins) for delta_sigma(min(rbins))
+            
+            dR_inner = original_rbins.min()/numR_inner
+            r_inner = np.arange(0.5*dR_inner, original_rbins.min(), dR_inner)
+            
             r_extended = np.hstack([r_inner, r_midpoints])
-
+            #print('r_extended\n', r_extended) #confirmed identical to c's Rp
+            
+            #TO DO: try using logarithmic bins across full range 0->max(rbins)
+            # for sigma_sm_extended, instead of inner + midpoints
+            #prec = 50
+            #r_ext_log = np.logspace(np.log10(1.e-10),
+            #                        np.log10(np.max(original_rbins)),
+            #                        num = prec)
+            #r_extended = r_ext_log
+            
             # set temporary extended rbins, nbins, x, rs_dc_rcrit array
             self._rbins = r_extended * units.Mpc
             self._nbins = self._rbins.shape[0]
@@ -314,22 +328,33 @@ class SurfaceMassDensity(object):
                                                     1).repeat(self._nbins,1)
 
             sigma_sm_extended = self.sigma_nfw()
+            #print('sigma_sm_extended[0,:]\n', sigma_sm_extended[0,:]) #this is indentical to c's
+            #                                                          #sigma_smoothed_Rp to 4th digit
 
             mean_inside_sigma_sm = np.zeros([self._nlens, original_rbins.shape[0]])
+            
             for i, r in enumerate(original_rbins):
-                #print('sigma_sm_extended.shape', sigma_sm_extended.shape)
-                #print('r_extended.shape', r_extended.shape)
-                x = r_extended[0:(i+numR_inner)]
-                y = sigma_sm_extended[:,0:(i+numR_inner)] * x
+                x = r_extended[0:(i+numR_inner+1)]
+                y = sigma_sm_extended[:,0:(i+numR_inner+1)] * x
+
+                #redefine x, y...
+                
                 #print('x.shape', x.shape)
                 #print('y.shape', y.shape)
-                integral = simps(y, x=x, axis=-1, even='first')
+                #print('sigma_sm_extended.shape', sigma_sm_extended.shape)
+                #print('r_extended.shape', r_extended.shape)
+                if mp == True:
+                    integral = midpoint(y, x=x, axis=-1)
+                else:
+                    integral = simps(y, x=x, axis=-1, even='first')
+                
 
                 #average of sigma_sm at r < rbin
                 mean_inside_sigma_sm[:,i] = (2. / r**2) * integral
                 
             mean_inside_sigma_sm = mean_inside_sigma_sm * units.Msun/(units.pc**2)
-
+            print('mean_inside_sigma_sm[0,:]', mean_inside_sigma_sm[0,:])
+            #print('sigma_sm_rbins[0,:]', sigma_sm_rbins[0,:])
                     
             # reset original rbins, nbins, x
             self._rbins = original_rbins * units.Mpc
@@ -398,25 +423,42 @@ def _set_dimensionless_radius(self, radii = None, integration = False):
 
 
 #------------------------------------------------------------------------------
-    
+
+from scipy.interpolate import interp1d
+
 def midpoint(y, x=None, dx=1., axis=-1):
     """Integrate using the midpoint rule."""
     if x is None:
-        dx_array = np.ones(y.shape[axis])*dx
+        if type(dx) != float:
+            raise ValueError('type(dx) must be float.')
+        else:
+            #length of dx_array should be number of y intervals
+            dx_array = np.ones(y.shape[axis]-1)*dx
     elif x.shape[0] != y.shape[axis]:
         raise ValueError('x and y have incompatible shapes.')
     else:
-        xm = (x[1:] + x[:-1]) / 2. #midpoints
-        xm_first = 2.* x[0] - xm[0]
-        xm_last = 2.* x[-1] - xm[-1]
-        xm = np.hstack([xm_first, xm, xm_last])
-        dx_array = xm[1:] - xm[:-1]
+        dx_array = x[1:] - x[:-1]
+    #print('dx_array', dx_array)
 
-    yshape = y.shape
+    #TODO: this isn't accounting for mult-dim y's
+    #ym = (y[1:] + y[:-1]) / 2. #midpoints
+
+    try:
+        xm = (x[1:] + x[:-1]) / 2.
+    except TypeError:
+        x = np.arange(0,y.shape[axis])*dx
+        xm = (x[1:] + x[:-1]) / 2.
+
+    #print('\nx\n', x)
+    #print('\ny\n', y)
+    f = interp1d(x,y, axis=axis)
+    ym = f(xm)
+
+    yshape = ym.shape
     xshape = [1] * len(yshape)
     xshape[axis] = yshape[axis]
     dx_array.shape = tuple(xshape)
-
-    integral = (y * dx_array).sum(axis=axis)
+    
+    integral = (ym * dx_array).sum(axis=axis)
 
     return integral
