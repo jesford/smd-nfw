@@ -286,40 +286,45 @@ class SurfaceMassDensity(object):
 
 
         def _offset_dsigma(self):
-
             original_rbins = self._rbins.value
 
-            #if offset sigma already calculated, use it!
+            #if offset sigma was already calculated, use it!
             try:
                 sigma_sm_rbins = self._sigma_sm
-                print('\nusing pre-calculated sigma_sm\n')
+                #print('\nusing pre-calculated sigma_sm\n')
             except AttributeError:
-                print('\nsigma_sm doesnt exist yet, calculating...')
+                #print('\nsigma_sm doesnt exist yet, calculating...')
                 sigma_sm_rbins = self.sigma_nfw()
-                #print('sigma_sm_rbins.shape', sigma_sm_rbins.shape)
+
 
             #get offset sigma inside min(rbins)
-            # could be sampled more finely both at r < and > min(rbins)...
+            # ...could be sampled more finely both at r < and > min(rbins)...
             numR_inner = 20 #this really affects speed!
-            r_midpoints = 0.5 * (original_rbins[:-1] + original_rbins[1:])
-            #r_inner = np.linspace(1.e-08, original_rbins.min(), numR_inner)
+
+            #METHOD 1: this r_extended is identical to c's Rp
+            #dR_inner = original_rbins.min()/numR_inner
+            #r_inner = np.arange(0.5*dR_inner, original_rbins.min(), dR_inner)
+            #r_midpoints = 0.5 * (original_rbins[:-1] + original_rbins[1:])
+            #r_extended = np.hstack([r_inner, r_midpoints])
+
+            #METHOD 2: gives similar output to c for offset deltasigma
+            # use outer edges of rbins, starting at ~0->max(rbins)
+            r_inner = np.linspace(1.e-08, original_rbins.min(), numR_inner, endpoint=False)
             #want to integrate from 0 -> min(rbins) for delta_sigma(min(rbins))
+            r_extended = np.hstack([r_inner, original_rbins])
             
-            dR_inner = original_rbins.min()/numR_inner
-            r_inner = np.arange(0.5*dR_inner, original_rbins.min(), dR_inner)
-            
-            r_extended = np.hstack([r_inner, r_midpoints])
-            #print('r_extended\n', r_extended) #confirmed identical to c's Rp
-            
-            #TO DO: try using logarithmic bins across full range 0->max(rbins)
+            #TO DO?
+            #METHOD 3: try using logarithmic bins across full range 0->max(rbins)
             # for sigma_sm_extended, instead of inner + midpoints
             #prec = 50
             #r_ext_log = np.logspace(np.log10(1.e-10),
             #                        np.log10(np.max(original_rbins)),
             #                        num = prec)
             #r_extended = r_ext_log
+
+            #print('r_extended\n', r_extended)
             
-            # set temporary extended rbins, nbins, x, rs_dc_rcrit array
+            #set temporary extended rbins, nbins, x, rs_dc_rcrit array
             self._rbins = r_extended * units.Mpc
             self._nbins = self._rbins.shape[0]
             _set_dimensionless_radius(self) #uses _rbins, _nlens
@@ -328,8 +333,11 @@ class SurfaceMassDensity(object):
                                                     1).repeat(self._nbins,1)
 
             sigma_sm_extended = self.sigma_nfw()
-            #print('sigma_sm_extended[0,:]\n', sigma_sm_extended[0,:]) #this is indentical to c's
-            #                                                          #sigma_smoothed_Rp to 4th digit
+
+            #for Method 1, this is pretty close to c's sigma_smoothed_Rp
+            # (it is identical to 3rd-4th digit)
+            #print('sigma_sm_extended[0,:]\n', sigma_sm_extended[0,:])
+
 
             mean_inside_sigma_sm = np.zeros([self._nlens, original_rbins.shape[0]])
             
@@ -337,23 +345,20 @@ class SurfaceMassDensity(object):
                 x = r_extended[0:(i+numR_inner+1)]
                 y = sigma_sm_extended[:,0:(i+numR_inner+1)] * x
 
-                #redefine x, y...
-                
-                #print('x.shape', x.shape)
-                #print('y.shape', y.shape)
-                #print('sigma_sm_extended.shape', sigma_sm_extended.shape)
-                #print('r_extended.shape', r_extended.shape)
                 if mp == True:
                     integral = midpoint(y, x=x, axis=-1)
                 else:
                     integral = simps(y, x=x, axis=-1, even='first')
-                
 
                 #average of sigma_sm at r < rbin
                 mean_inside_sigma_sm[:,i] = (2. / r**2) * integral
                 
             mean_inside_sigma_sm = mean_inside_sigma_sm * units.Msun/(units.pc**2)
-            print('mean_inside_sigma_sm[0,:]', mean_inside_sigma_sm[0,:])
+
+            #for Method 2, this is pretty close! (identical to 2nd-3rd digit)
+            #for Method 1, this is wildy off (factors of a few)
+            #print('mean_inside_sigma_sm[0,:]', mean_inside_sigma_sm[0,:])
+            
             #print('sigma_sm_rbins[0,:]', sigma_sm_rbins[0,:])
                     
             # reset original rbins, nbins, x
@@ -364,9 +369,6 @@ class SurfaceMassDensity(object):
             self._rs_dc_rcrit = rs_dc_rcrit.reshape(self._nlens,
                                                     1).repeat(self._nbins,1)
             self._sigma_sm = sigma_sm_rbins #reset to original rbins sigma_sm
-
-            #print('type(mean_inside_sigma_sm)', type(mean_inside_sigma_sm))
-            #print('type(sigma_sm_rbins)', type(sigma_sm_rbins))
 
             dsigma_sm = mean_inside_sigma_sm - sigma_sm_rbins
 
