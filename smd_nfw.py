@@ -312,7 +312,7 @@ class SurfaceMassDensity(object):
 
         return finalsigma
 
-    def deltasigma_nfw(self, mp=True):
+    def deltasigma_nfw(self, mp=False):
         """Calculate NFW differential surface mass density profile.
 
         Generate the surface mass density profiles of each cluster halo,
