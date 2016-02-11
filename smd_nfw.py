@@ -199,14 +199,13 @@ class SurfaceMassDensity(object):
         slow because it makes of order 10^5 calls to the function to be
         integrated, even for generous settings of epsabs, epsrel. Likely
         it is getting stuck in non-smooth portions of the function space.
-        (2) scipy.integrate.simps is fast and converges for a relatively
-        small number of radial bins in the integration over Roff. However
-        for the theta integral simps consistently underestimates the area.
+        (2) scipy.integrate.simps is fast and converges faster than the
+        midpoint integration for both the integration over Roff and theta. 
         (3) scipy.integrate.romb was somewhat slower than simps and as well
         as the midpoint rule integration.
         (4) midpoint rule integration via a Riemann Sum was about the same
-        speed as simps, and converged more rapidly as a function of number
-        of theta bins used for the angular integration.
+        speed as simps, and converges smoothly for both integrals, but
+        requires a larger number of bins to converge to the best estimate.
         (5) numpy.trapz underestimates concave down functions.
         """
         def _centered_sigma(self):
@@ -243,12 +242,13 @@ class SurfaceMassDensity(object):
         def _offset_sigma(self):
 
             # size of "x" arrays to integrate over
-            numRoff = 300
-            numTh = 100  #500? # TO DO: option for user to set this
+            numRoff = 200
+            numTh = 200  # TO DO: option for user to set this
             #print('numRoff, numTh:', numRoff, numTh)
 
             numRbins = self._nbins
             maxsig = self._sigmaoffset.value.max()
+            # inner/outer bin edges (do NOT set endpoint=False!)
             roff_1D = np.linspace(0., 4.*maxsig, numRoff)
             theta_1D = np.linspace(0., 2.*np.pi, numTh)
             rMpc_1D = self._rbins.value
@@ -268,12 +268,12 @@ class SurfaceMassDensity(object):
             inner_integrand = sigma.value/(2.*np.pi)
 
             # ----- integrate over theta axis -----
-            # NOTE: midpoint is optimal here, simps doesn't do well with
-            # the not smooth function sampled by inner_integrand.
+            # NOTE: simps converges much faster than midpoint (both do
+            # so smoothly). ~200 theta bins is good for simps.
 
-            #sigma_of_RgivenRoff = simps(inner_integrand, x=theta_1D, axis=0,
-            #                            even='first')
-            sigma_of_RgivenRoff = midpoint(inner_integrand, x=theta_1D, axis=0)
+            sigma_of_RgivenRoff = simps(inner_integrand, x=theta_1D, axis=0,
+                                        even='first')
+            #sigma_of_RgivenRoff = midpoint(inner_integrand, x=theta_1D, axis=0)
             # -------------------------------------
 
             # theta is gone, now dimensions are: (numRoff,numRbins,nlens)
@@ -285,8 +285,9 @@ class SurfaceMassDensity(object):
             dbl_integrand = sigma_of_RgivenRoff * PofRoff
 
             # ----- integrate over Roff axis -----
-            # NOTE: either simps or midpoint works well here, both converge
-            # for relatively small number of roff bins (~200-300).
+            # NOTE: simps oscillates around final value, while midpoint
+            # underestimates and rises smoothly to final value.
+            # for simps ~200 roff bins is good.
             # (integration axis=0 after theta is gone).
 
             sigma_smoothed = simps(dbl_integrand, x=roff_1D, axis=0,
